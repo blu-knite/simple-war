@@ -37,6 +37,6 @@ amx_automap "1" // 0- Disable | 1- Enable<br/>
 -Updated to 2.0 Version<br/>
 -Added Auto Map Vote feature at the end of rank display<br/>
 -Added Cvar Control Auto Vote amx_automap "1" //1 Enable and 0 Disable <br/>
--Added Map file amxmodx/confis/maps_war.ini use this file to read war auto maps vote.<br/>
+-Added Map file amxmodx/configs/maps_war.ini use this file to read war auto maps vote.<br/>
 
 ### NOTE: You can run v2 version of pub war with any mod any map. <br/>
