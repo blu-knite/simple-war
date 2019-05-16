@@ -8,13 +8,32 @@
 #include <csx>
 #include <engine>
 
+#if AMXX_VERSION_NUM < 183
+	#include <dhudmessage>
+	#include <colorchat>
+#endif
+
 #define PLUGIN "||ECS|| PuB War"
-#define VERSION "1.0"
+#define VERSION "2.0"
 #define AUTHOR "||ECS||nUy aka Abhishek Deshkar"
 
-#define SVNUM 1
-
+//#define SOUND
+//#define LIVE_DHUD
 #define warcfg "war.cfg"
+
+//Sound Control You must uncomment #define Sound in order to work sound.
+// Double Slash is comment
+#if defined SOUND
+new sound_files[5][]=
+{
+	"sound/war_captain.mp3", //0 captain select
+	"sound/war_playerselection.mp3", //1 player select
+	"sound/war_firsthalf.mp3", //2 first half
+	"sound/war_secondhalf.mp3", //3 second half
+	"sound/war_end.mp3" //4 match end score board
+	// these files are example update according to your needs.
+}
+#endif
 
 //Set frags.
 new Frags[33], Deaths[33];
@@ -147,21 +166,48 @@ new WhoChoseThePlayer
 
 new cvar_prefix;
 new prefix[64];
+new cvar_noreset;
+
+#if defined LIVE_DHUD
+new iXYPos;
+new const Float:HUD_XY_POS[ ][ ] =
+{
+	{ -1.0, 0.98 },
+	{ -1.0, 0.91 },
+	{ -1.0, 0.84 },
+	{ -1.0, 0.77 },
+	{ -1.0, 0.70 },
+	{ -1.0, 0.63 },
+	{ -1.0, 0.56 },
+	{ -1.0, 0.49 },
+	{ -1.0, 0.42 },
+	{ -1.0, 0.35 },
+	{ -1.0, 0.28 },
+	{ -1.0, 0.21 },
+	{ -1.0, 0.14 },
+	{ -1.0, 0.07 },
+	{ -1.0, 0.00 }
+};
+#endif
 
 public plugin_init()
 {
 	register_plugin(PLUGIN, VERSION, AUTHOR);
 
-	register_clcmd("amx_startmatch", "ShowMenu", ADMIN_KICK, "Get All The players");    
+	register_clcmd("say /rs", "reset_block");
+	register_clcmd("amx_startmatch", "ShowMenu", ADMIN_KICK, "Get All The players");
+	register_clcmd("amx_stopmatch", "StopMatch", ADMIN_KICK, "Stop the Match!");
+	register_clcmd("amx_restartmatch", "RestartMatch", ADMIN_KICK, "Restart the Match!");  
 
-	gMaxPlayers = get_maxplayers()
+    //CVARS
+	cvar_prefix = register_cvar("amx_warprefix", "||Pub Match||");
+	cvar_overtime = register_cvar("amx_overtime", "0");
+	cvar_noreset = register_cvar("amx_noreset", "0");
 
-    //Change Game Description.
-	cvar_prefix = register_cvar("amx_warprefix", "[ WAR ]");
-	cvar_overtime = register_cvar("amx_overtime_enable", "0");
-
-	amx_warname = register_cvar( "amx_warname", "-= WAR About To Start! =-" ); 
-	register_forward( FM_GetGameDescription, "GameDesc" ); 
+	//Set Game Desc
+	amx_warname = register_cvar( "amx_warname", "|| WAR About To Start! ||" ); 
+	register_forward( FM_GetGameDescription, "GameDesc" );
+	set_pcvar_string(amx_warname, "|| Match About to Start ||");
 
 	// AFK declaration
 #if defined CVAR_POINTERS
@@ -208,10 +254,6 @@ public plugin_init()
 	register_clcmd("chooseteam", "cmdChooseTeam")
 	register_clcmd("jointeam", "GoToTheSpec");
 
-    //Stop or Restart the Match!
-	register_clcmd("amx_stopmatch", "StopMatch", ADMIN_KICK, "Stop the Match!");
-	register_clcmd("amx_restartmatch", "RestartMatch", ADMIN_KICK, "Restart the Match!");
-
     // T OR CT WIN.
 	register_event( "SendAudio","on_TerroristWin","a","2=%!MRAD_terwin");
 	register_event( "SendAudio","on_CTWin","a","2=%!MRAD_ctwin");
@@ -226,7 +268,59 @@ public plugin_init()
 	get_mapname(szMapname, charsmax(szMapname))
 
     get_pcvar_string(cvar_prefix, prefix, charsmax(prefix))
+
+    gMaxPlayers = get_maxplayers()
 }
+
+
+//Reset Block
+public reset_block(id)
+{
+	if(get_pcvar_num(cvar_noreset) == 1 && g_MatchStarted)
+	{
+		client_print_color(id, 0, "You cannot reset your score during match");
+		return PLUGIN_HANDLED;
+	}
+	return PLUGIN_CONTINUE;
+}
+
+// Sound Declaration
+#if defined SOUND
+public plugin_precache()
+{
+	for(new i=0 ; i < sizeof sound_files; i++)
+    {
+        precache_generic(sound_files[i]);
+    }
+}
+
+public PlaySound(soundcode)
+{
+	switch(soundcode)
+	{
+		case 0: 
+		{
+			client_cmd(0, "mp3 play %s", sound_files[0]);
+		}
+		case 1:
+		{
+			client_cmd(0, "mp3 play %s", sound_files[1]);
+		}
+		case 2:
+		{
+			client_cmd(0, "mp3 play %s", sound_files[2]);
+		}
+		case 3:
+		{
+			client_cmd(0, "mp3 play %s", sound_files[3]);
+		}
+		case 4:
+		{
+			client_cmd(0, "mp3 play %s", sound_files[4]);
+		}
+	}
+}
+#endif
 
 //Bomb afk transfer declarations.
 public event_new_round() {
@@ -926,6 +1020,9 @@ public ShowMenu(id, lvl, cid)
     //Task 2 - Show Players Menu to who started the match.
 	set_task(3.0, "ShowMenuPlayers", id)
 
+	#if defined SOUND
+	PlaySound(0);
+	#endif
 
 	return PLUGIN_HANDLED;
 }
@@ -1251,7 +1348,9 @@ public TeamHandler(id, TeamChooser, iItem )
 // MENU TO CHOOSE PLAYERS !!!
 public LetsFirstChoosePlayers(id)
 {
-
+	#if defined SOUND
+	PlaySound(1);
+	#endif
 
 	new players[32], count;     
 	get_players(players, count,"eh","SPECTATOR"); 
@@ -1634,6 +1733,10 @@ public DoRanking()
 	new taskId = 6969        
 	set_task(1.0, "displayRankingTable", taskId, msgToDisplay, strlen(msgToDisplay), "b")
 
+	#if defined SOUND
+    PlaySound(4);
+    #endif
+
 }
 
 public displayRankingTable(msgToDisplay[], taskId)
@@ -1790,8 +1893,15 @@ public StartMatch()
     //Set the status of half to first half.
     isFirstHalfStarted = true
 
+    #if defined LIVE_DHUD
+    set_task(12.0, "ShowHUD_LiveLive");
+    #else
     set_task(12.0,"FirstHalfHUDMessage")
+    #endif
 
+    #if defined SOUND
+    PlaySound(2);
+    #endif
 }
 
 //Swap teams for Overtime message.
@@ -1832,9 +1942,9 @@ public SwapTeamsAndRestartMatchOT()
     //Give Restart
     set_task(4.0, "GiveRestartRound", _, _, _, "a", 3 ); 
 
-    client_print_color(0, print_team_default, "^3[%s OT] ^4Teams ^1Have Been ^4Swapped !", prefix);
-    client_print_color(0, print_team_default, "^3[%s OT] ^4Over Time ^1- ^3%i ^4Second half ^1has been ^4Started !", prefix, OTCount);
-    client_print_color(0, print_team_default, "^3[%s OT] ^4Over Time ^1- ^3%i ^4Second half ^1has been ^4Started !", prefix, OTCount);
+    client_print_color(0, print_team_default, "^3%s OT ^4Teams ^1Have Been ^4Swapped !", prefix);
+    client_print_color(0, print_team_default, "^3%s OT ^4Over Time ^1- ^3%i ^4Second half ^1has been ^4Started !", prefix, OTCount);
+    client_print_color(0, print_team_default, "^3%s OT ^4Over Time ^1- ^3%i ^4Second half ^1has been ^4Started !", prefix, OTCount);
 
     is_secondHalf = true
 
@@ -1867,10 +1977,18 @@ public SwapTeamsAndRestartMatch()
     //Set first half status to zero.
     isFirstHalfStarted = false
     isSecondHalfStarted = true
+
+    #if defined LIVE_DHUD
+    set_task(12.0, "ShowHUD_LiveLive");
+    #else
     set_task(14.0,"SecondHalfHUDMessage")
+    #endif
 
     LoadMatchSettings()
 
+    #if defined SOUND
+	PlaySound(3);
+	#endif
 }
 
 
@@ -2038,7 +2156,7 @@ public FirstTeamWonTheMatch()
 	set_dhudmessage(0, 255, 0, -1.0, -1.0, 0, 2.0, 6.0, 0.8, 0.8)
 	show_dhudmessage(0,"Team [ %s ]  Won The Match !! ^n GG WP To Team %s ..",FirstCaptainName,FirstCaptainName)
 
-	set_cvar_string("amx_warname","-= WAR About To Start! =-")
+	set_cvar_string("amx_warname","|| WAR About To Start! ||")
 }
 
 //Winner message. - Second team won!
@@ -2048,7 +2166,7 @@ public SecondTeamWonTheMatch()
 	show_dhudmessage(0,"Team [ %s ] Won The Match !! ^n GG WP To Team %s  !",SecondCaptainName,SecondCaptainName)
 
 
-	set_cvar_string("amx_warname","-= WAR About To Start! =-")
+	set_cvar_string("amx_warname","|| WAR About To Start! ||")
 }
 
 //Load Match settings because match has been started !
@@ -2064,7 +2182,7 @@ public LoadMatchSettings()
 public LoadPubSettings()
 {
 
-	set_cvar_string("amx_warname","-= WAR About To Start! =-")
+	set_cvar_string("amx_warname","|| WAR About To Start! ||")
 
 	//Set some zero.
 	CaptainChoosenID = 0
@@ -2193,10 +2311,10 @@ public SwapTeamsAndStartOverTimeFirstHalf()
     //Give Restart
     set_task(4.0, "GiveRestartRound", _, _, _, "a", 3 ); 
 
-    client_print_color(0, print_team_default, "^3[%s OT] ^4Teams ^1Have Been ^4Swapped !", prefix);
-    client_print_color(0, print_team_default, "^3[%s OT] ^4Over Time ^1- ^3%i ^4First Half ^1has been ^4Started !", prefix, OTCount);
-    client_print_color(0, print_team_default, "^3[%s OT] ^4Over Time ^1- ^3%i ^4First Half ^1has been ^4Started !", prefix, OTCount);
-    client_print_color(0, print_team_default, "^3[%s OT] ^4OverTime Number ^1: ^3%i", prefix, OTCount);
+    client_print_color(0, print_team_default, "^3%s OT ^4Teams ^1Have Been ^4Swapped !", prefix);
+    client_print_color(0, print_team_default, "^3%s OT ^4Over Time ^1- ^3%i ^4First Half ^1has been ^4Started !", prefix, OTCount);
+    client_print_color(0, print_team_default, "^3%s OT ^4Over Time ^1- ^3%i ^4First Half ^1has been ^4Started !", prefix, OTCount);
+    client_print_color(0, print_team_default, "^3%s OT ^4OverTime Number ^1: ^3%i", prefix, OTCount);
 
     g_MatchStarted = true
 
@@ -2558,12 +2676,20 @@ public LiveOnThreeRestart()
 {
 
     set_dhudmessage(42, 255, 212, -1.0, -1.0, 0, 2.0, 3.0, 0.8, 0.8)
-    show_dhudmessage(0,"-{ LiVe On 3 RestartS } - ^n -== LO3 =-")
+    show_dhudmessage(0,"-{ LiVe On 3 RestartS }- ^n-= LO3 =-")
 }
 
-stock ecs(const text[], any:...)
+#if defined LIVE_DHUD
+public ShowHUD_LiveLive()
 {
-	new szMsg[191]
-	vformat(szMsg, charsmax(szMsg), text, 2);
-	server_print("[ECS Points] %s", szMsg)
+	set_task( 0.2, "HUD_LiveLive", _, _, _, "a", sizeof( HUD_XY_POS ) * 2 );
 }
+
+public HUD_LiveLive( index )
+{
+	if( iXYPos >= sizeof( HUD_XY_POS ) ) iXYPos = 0;
+	set_dhudmessage( random_num( 0, 255 ), random_num( 0, 255 ), random_num( 0, 255 ), HUD_XY_POS[ iXYPos ][ 0 ], HUD_XY_POS[ iXYPos ][ 1 ], 0, 50.0, 0.3, 0.4, 0.4 );
+	show_dhudmessage( index, "[   L   I   V   E   ]          [   %s   ]          [   %s   ]             [   L   I   V   E   ]", isFirstHalfStarted ? "FIRST HALF" : "SECOND HALF" , isFirstHalfStarted ? "FIRST HALF" : "SECOND HALF" );
+	iXYPos++;
+}
+#endif
