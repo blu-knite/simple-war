@@ -13,9 +13,10 @@ amx_startmatch<br/>
 amx_stopmatch<br/>
 amx_restartmatch<br/>
 
-cvar<br/>
-amx_warprefix "[ Your Tag ]"<br/>
-amx_overtime_enable "0" // 1 to enable ot and 0 to disable<br/>
+Updated Cvars<br/>
+amx_warprefix "||Pub WAR||" // Your Server Tag<br/>
+amx_overtime "0" // 1 - To enable | 0 - To disable<br/>
+amx_noreset "0" //0 - To allow reset during match | 1 - To block reset
 
 
 Changelog:-<br/>
