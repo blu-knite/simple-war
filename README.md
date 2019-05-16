@@ -1,7 +1,7 @@
 # PubWAR
 Match Plugin for Pub servers CS/CZ
 
-\This is first popular plugin of pub , which has captain selection, team selection, player selection feature, every thing is automated and its quite like a automix.
+This is first popular plugin of pub , which has captain selection, team selection, player selection feature, every thing is automated and its quite like a automix.
 
 Requirements:
 AMX 1.9.0+ Dev or ReAMX
@@ -33,4 +33,4 @@ Changelog:-
 -Updated code and Optimised.
 -Updated to 2.0 Version
 
-NOTE: You can run v2 version of pub war with any mod any map.\
+NOTE: You can run v2 version of pub war with any mod any map.
