@@ -3,6 +3,12 @@ Match Plugin for Pub servers CS/CZ<br/>
 
 This is first popular plugin of pub , which has captain selection, team selection, player selection feature, every thing is automated and its quite like a automix.<br/>
 
+
+### Installations<br/>
+> Put .amxx in amxmodx/plugins/<br/>
+> Put war.cfg in cstrike folder where server.cfg is.<br/>
+> Put maps_war.ini in amxmodx/configs/<br/>
+
 ### Requirements:<br/>
 AMX 1.9.0+ Dev or ReAMX<br/>
 ReAPI<br/>
