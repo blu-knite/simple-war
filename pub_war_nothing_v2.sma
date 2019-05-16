@@ -213,7 +213,7 @@ public plugin_init()
 	register_clcmd("amx_restartmatch", "RestartMatch", ADMIN_KICK, "Restart the Match!");  
 
     //CVARS
-	cvar_prefix = register_cvar("amx_warprefix", "||Pub Match||");
+	cvar_prefix = register_cvar("amx_warprefix", "||Pub WAR||");
 	cvar_overtime = register_cvar("amx_overtime", "0");
 	cvar_noreset = register_cvar("amx_noreset", "0");
 	cvar_automap = register_cvar("amx_automap", "1");
