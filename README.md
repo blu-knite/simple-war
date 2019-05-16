@@ -3,12 +3,12 @@ Match Plugin for Pub servers CS/CZ<br/>
 
 This is first popular plugin of pub , which has captain selection, team selection, player selection feature, every thing is automated and its quite like a automix.<br/>
 
-Requirements:<br/>
+## Requirements:<br/>
 AMX 1.9.0+ Dev or ReAMX<br/>
 ReAPI<br/>
 ReHLDS & ReGameDLL<br/>
 
-Command<br/>
+## Console Command<br/>
 amx_startmatch<br/>
 amx_stopmatch<br/>
 amx_restartmatch<br/>
@@ -20,7 +20,7 @@ amx_noreset "0" //0 - To allow reset during match | 1 - To block reset<br/>
 amx_automap "1" // 0- Disable | 1- Enable<br/>
 
 
-Changelog:-<br/>
+## Changelog:-<br/>
 -Added Prefix Support<br/>
 -Added AMX 1.9.0+ Color Chat support<br/>
 -Added Support for AMX 1.8.2 - Not Tested.
@@ -39,4 +39,4 @@ Changelog:-<br/>
 -Added Cvar Control Auto Vote amx_automap "1" //1 Enable and 0 Disable <br/>
 -Added Map file amxmodx/confis/maps_war.ini use this file to read war auto maps vote.<br/>
 
-NOTE: You can run v2 version of pub war with any mod any map.<br/>
+## NOTE: You can run v2 version of pub war with any mod any map.<br/>
