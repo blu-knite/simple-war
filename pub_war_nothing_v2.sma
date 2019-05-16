@@ -17,12 +17,13 @@
 #define VERSION "2.0"
 #define AUTHOR "||ECS||nUy aka Abhishek Deshkar"
 
-//#define SOUND
-//#define LIVE_DHUD
-#define warcfg "war.cfg"
-
 //Sound Control You must uncomment #define Sound in order to work sound.
 // Double Slash is comment
+
+//#define SOUND
+#define LIVE_DHUD
+#define warcfg "war.cfg"
+
 #if defined SOUND
 new sound_files[5][]=
 {
@@ -190,6 +191,18 @@ new const Float:HUD_XY_POS[ ][ ] =
 };
 #endif
 
+//Auto Map Vote Variables
+new g_gVoteMenu;
+new g_gVotes[5]
+new g_Maps_Ini_File[64]
+new g_MapsCounter
+new g_MapsAvailable[30][20]
+new g_MapsChosen[4][20]
+new g_DoneMaps
+new g_ChangeMapTo
+
+new cvar_automap;
+
 public plugin_init()
 {
 	register_plugin(PLUGIN, VERSION, AUTHOR);
@@ -203,11 +216,12 @@ public plugin_init()
 	cvar_prefix = register_cvar("amx_warprefix", "||Pub Match||");
 	cvar_overtime = register_cvar("amx_overtime", "0");
 	cvar_noreset = register_cvar("amx_noreset", "0");
+	cvar_automap = register_cvar("amx_automap", "1");
 
 	//Set Game Desc
 	amx_warname = register_cvar( "amx_warname", "|| WAR About To Start! ||" ); 
 	register_forward( FM_GetGameDescription, "GameDesc" );
-	set_pcvar_string(amx_warname, "|| Match About to Start ||");
+	set_pcvar_string(amx_warname, "|| WAR About to Start ||");
 
 	// AFK declaration
 #if defined CVAR_POINTERS
@@ -270,6 +284,9 @@ public plugin_init()
     get_pcvar_string(cvar_prefix, prefix, charsmax(prefix))
 
     gMaxPlayers = get_maxplayers()
+
+    get_configsdir(g_Maps_Ini_File, 63); 
+	formatex(g_Maps_Ini_File, 63, "%s/maps_war.ini", g_Maps_Ini_File);
 }
 
 
@@ -1737,6 +1754,11 @@ public DoRanking()
     PlaySound(4);
     #endif
 
+    //Take Vote Now
+    if(get_pcvar_num(cvar_automap) == 1)
+    {
+    	set_task(0.5, "StartVote")
+    }
 }
 
 public displayRankingTable(msgToDisplay[], taskId)
@@ -2693,3 +2715,119 @@ public HUD_LiveLive( index )
 	iXYPos++;
 }
 #endif
+
+// Auto Map Vote
+public StartVote()  
+{  
+	getmaps() 
+	new rnd 
+	while (g_DoneMaps != 4 && g_MapsCounter > 0) { 
+		rnd = random(g_MapsCounter) 
+		copy(g_MapsChosen[g_DoneMaps++], 19, g_MapsAvailable[rnd]) 
+		g_MapsAvailable[rnd] = g_MapsAvailable[--g_MapsCounter] 
+	}         
+
+	new title[64], extend[64]
+	formatex(title, charsmax(title), "Auto Change Map^n")
+	formatex(extend, charsmax(extend), "Extend Current Map")
+	g_gVoteMenu = menu_create(title,"votemap")
+	
+	new num[11] 
+	for(new i = 0; i < g_DoneMaps; i++)  { 
+		num_to_str(i, num, 10) 
+		menu_additem(g_gVoteMenu, g_MapsChosen[i], num, 0)
+	}
+	menu_additem(g_gVoteMenu, extend, "4", 0) 
+	menu_setprop(g_gVoteMenu, MPROP_EXIT, MEXIT_NEVER)
+	
+	new players[32], pnum, tempid; 
+	get_players(players, pnum, "ch"); 
+	
+	for( new i; i<pnum; i++)
+	{ 
+		tempid = players[i]; 
+		menu_display(tempid, g_gVoteMenu); 
+	}
+
+	client_cmd(0, "spk ^"get red(e80) ninety(s45) to check(e20) use bay(s18) mass(e42) cap(s50)^"") 
+	set_task(10.0, "EndVote");
+	return PLUGIN_HANDLED;
+} 
+
+public votemap(id, menu, item) {
+
+	if(item == MENU_EXIT) 
+	{
+		return PLUGIN_HANDLED
+	}
+	
+	new data[6], szName[64];
+	new access, callback;
+	menu_item_getinfo(menu, item, access, data,charsmax(data), szName,charsmax(szName), callback);
+	new voteid = str_to_num(data);
+	new playerna[32]
+	get_user_name(id, playerna, 31)
+	
+	if(voteid != 4)
+		client_print_color(0, 0, "^4%s ^3%s ^1voted for ^4[ ^3%s ^4]", prefix, playerna, g_MapsChosen[voteid])
+	else 
+		client_print_color(0, 0, "^4%s ^3%s ^1voted to ^4extend ^3the ^1current map.", prefix, playerna)
+	
+	g_gVotes[voteid]++;
+	return PLUGIN_HANDLED;
+}
+
+public getmaps() { 
+	new mapsfile = fopen(g_Maps_Ini_File, "r") 
+	new linefortest[50] 
+     
+	while (g_MapsCounter < sizeof(g_MapsAvailable) && !feof(mapsfile)) { 
+		fgets(mapsfile, linefortest, 49) 
+		trim(linefortest) 
+		
+		new getcurrentmap[32]
+		get_mapname(getcurrentmap, 31)
+		
+		if ((is_map_valid(linefortest)) && (!equali(linefortest, getcurrentmap))) 
+			copy(g_MapsAvailable[g_MapsCounter++], 24, linefortest)  
+	} 
+     
+	fclose(mapsfile) 
+} 
+
+public EndVote() { 
+	show_menu(0, 0, "^n", 1); 
+	new best = 0; 
+	for(new i = 1; i < sizeof(g_gVotes); i++) { 
+		if(g_gVotes[i] > g_gVotes[best]) 
+		best = i; 
+	}
+	
+	g_gVotes[0] = 0
+	g_gVotes[1] = 0
+	g_gVotes[2] = 0
+	g_gVotes[3] = 0
+	g_gVotes[4] = 0
+	
+	if(best == 4) { 
+		client_print_color(0, 0, "^4%s ^3The ^1current map ^4will be ^3extended ^1for this match.", prefix); 
+		//TeamsVote()
+	} 
+	else { 
+		client_print_color(0, 0, "^4%s ^3The ^1map ^4will be ^3changed ^1within 10 ^4seconds. Nextmap ^3[ ^4%s ^3].", prefix, g_MapsChosen[best]); 
+		g_ChangeMapTo = best;
+
+		set_task(10.0, "ChangeMap"); 
+	} 
+	
+	return PLUGIN_HANDLED
+}
+
+public ChangeMap() {
+	new maptochangeto[25]
+	
+	copy(maptochangeto, 24, g_MapsChosen[g_ChangeMapTo])
+	server_cmd("changelevel %s", maptochangeto)
+	return PLUGIN_CONTINUE
+}
+// End
