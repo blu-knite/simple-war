@@ -3,10 +3,7 @@
 #include <cstrike>
 #include <fun>
 #include <fakemeta>
-#include <hamsandwich>
-#include <reapi>
 #include <csx>
-#include <engine>
 
 #if AMXX_VERSION_NUM < 183
 	#include <dhudmessage>
@@ -17,11 +14,19 @@
 #define VERSION "2.0"
 #define AUTHOR "||ECS||nUy aka Abhishek Deshkar"
 
-//Sound Control You must uncomment #define Sound in order to work sound.
-// Double Slash is comment
+//To Enable REAPI Module usage uncomment #define USE_REAPI
+#define USE_REAPI
 
+#if defined USE_REAPI
+	#include <reapi>
+#endif
+//To Enable Sound Feature uncomment #define SOUND
 //#define SOUND
-#define LIVE_DHUD
+
+//To Enable Disable NEW LIVE HUD Feature.
+//#define LIVE_DHUD
+
+//WAR CFG location default cstrike folder
 #define warcfg "war.cfg"
 
 #if defined SOUND
@@ -1120,8 +1125,11 @@ public PlayersMenuHandler( id, iMenu, iItem )
 		if(CaptainCount == 0)
 		{
 
-            //cs_set_user_team(iPlayer, CS_TEAM_CT)
+            #if defined USE_REAPI
 			rg_set_user_team(iPlayer,TEAM_CT,MODEL_AUTO,true)
+			#else
+			cs_set_user_team(iPlayer, CS_TEAM_CT)
+			#endif
 
 			new ChosenCaptain[32] 
 			get_user_name(iPlayer, ChosenCaptain, charsmax(ChosenCaptain)) 
@@ -1148,9 +1156,11 @@ public PlayersMenuHandler( id, iMenu, iItem )
 		if(CaptainCount == 1)
 		{
 
-            //cs_set_user_team(iPlayer, CS_TEAM_T)
+            #if defined USE_REAPI
 			rg_set_user_team(iPlayer,TEAM_TERRORIST,MODEL_AUTO,true)
-
+			#else
+			cs_set_user_team(iPlayer, CS_TEAM_T)
+			#endif
 
 			new ChosenCaptain[32] 
 			get_user_name(iPlayer, ChosenCaptain, charsmax(ChosenCaptain)) 
@@ -1474,13 +1484,21 @@ public LetsFirstChoosePlayersHandler( id, iChoosePlayers, iItem )
 			if(team == CS_TEAM_CT)
 			{
                 //transfer player to ct.
+                #if defined USE_REAPI
 				rg_set_user_team(iPlayer,TEAM_CT,MODEL_AUTO,true)
+				#else
+				cs_set_user_team(iPlayer, CS_TEAM_CT)
+				#endif
 			}
 
 			if(team == CS_TEAM_T)
 			{
                 //transfer player to Terrorist.
+                #if defined USE_REAPI
 				rg_set_user_team(iPlayer,TEAM_TERRORIST,MODEL_AUTO,true)
+				#else
+				cs_set_user_team(iPlayer, CS_TEAM_T)
+				#endif
 			}
 
 
@@ -1598,13 +1616,21 @@ public LetsSecondChoosePlayersHandler( id, iChoosePlayers, iItem )
             if(team == CS_TEAM_CT)
             {
                 //transfer player to ct.
+                #if defined USE_REAPI
                 rg_set_user_team(iPlayer,TEAM_CT,MODEL_AUTO,true)
+                #else
+                cs_set_user_team(iPlayer, CS_TEAM_CT)
+                #endif
             }
 
             if(team == CS_TEAM_T)
             {
                 //transfer player to Terrorist.
+                #if defined USE_REAPI
                 rg_set_user_team(iPlayer,TEAM_TERRORIST,MODEL_AUTO,true)
+                #else
+                cs_set_user_team(iPlayer, CS_TEAM_T)
+                #endif
             }
 
             
@@ -1809,9 +1835,11 @@ public cmdTeamSwap()
 	{
 		player = players[i]
 
-        
-        //rg_set_user_team(iPlayer,TEAM_CT,MODEL_AUTO,true)
+        #if defined USE_REAPI
 		rg_set_user_team(player, cs_get_user_team(player) == CS_TEAM_T ? TEAM_CT:TEAM_TERRORIST,MODEL_AUTO,true)
+		#else
+		cs_set_user_team(player, cs_get_user_team(player) == CS_TEAM_T ? CS_TEAM_CT:CS_TEAM_T)
+		#endif
 	}
 	
 	return PLUGIN_HANDLED
@@ -1829,9 +1857,11 @@ public SwapPlayer()
 		player = players[i]
 		if(get_user_team(player) != 3)
         {
-
+        	#if defined USE_REAPI
             rg_set_user_team(player, cs_get_user_team(player) == CS_TEAM_T ? TEAM_CT:TEAM_TERRORIST,MODEL_AUTO,true)
-             //cs_set_user_team(player, cs_get_user_team(player) == CS_TEAM_T ? CS_TEAM_CT:CS_TEAM_T)
+            #else
+            cs_set_user_team(player, cs_get_user_team(player) == CS_TEAM_T ? CS_TEAM_CT:CS_TEAM_T)
+            #endif
         }
 	}
 	
@@ -1876,7 +1906,12 @@ public DoTransferSpec(id)
     if(is_user_connected(id))
     {
         user_kill(id)
+
+        #if defined USE_REAPI
         rg_set_user_team(id, TEAM_SPECTATOR,MODEL_AUTO,true)
+        #else
+        cs_set_user_team(id, CS_TEAM_SPECTATOR);
+        #endif
     }
     
 }
@@ -2159,8 +2194,6 @@ public TransferToSpec(id)
             get_user_name(id, TransferedName, charsmax(TransferedName))
 
             user_kill(id)
-            //cs_set_user_team(id, CS_TEAM_SPECTATOR)
-            //rg_set_user_team(id, TEAM_SPECTATOR,MODEL_AUTO,true)
 
             set_task(3.0,"DoTransferSpec",id)
 
