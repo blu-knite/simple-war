@@ -26,7 +26,7 @@ amx_noreset "0" //0 - To allow reset during match | 1 - To block reset<br/>
 amx_automap "1" // 0- Disable | 1- Enable<br/>
 
 
-### Changelog:-<br/>
+### Changelog 2.0:-<br/>
 -Added Prefix Support<br/>
 -Added AMX 1.9.0+ Color Chat support<br/>
 -Added Support for AMX 1.8.2 - Not Tested.
@@ -44,5 +44,7 @@ amx_automap "1" // 0- Disable | 1- Enable<br/>
 -Added Auto Map Vote feature at the end of rank display<br/>
 -Added Cvar Control Auto Vote amx_automap "1" //1 Enable and 0 Disable <br/>
 -Added Map file amxmodx/configs/maps_war.ini use this file to read war auto maps vote.<br/>
+-Removed Unwanted Modules/Codes<br/>
+-Added Support REAPI Enable or Disable Just comment #define USE_REAPI to disable using reapi feature.<br/>
 
 ### NOTE: You can run v2 version of pub war with any mod any map. <br/>
