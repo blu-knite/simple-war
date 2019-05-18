@@ -4,29 +4,29 @@ Match Plugin for Pub servers CS/CZ<br/>
 This is first popular plugin of pub , which has captain selection, team selection, player selection feature, every thing is automated and its quite like a automix.<br/>
 
 
-### Installations<br/>
+### Installations
 > Put .amxx in amxmodx/plugins/<br/>
 > Put war.cfg in cstrike folder where server.cfg is.<br/>
 > Put maps_war.ini in amxmodx/configs/<br/>
 
-### Requirements:<br/>
+### Requirements:
 AMX 1.9.0+ Dev or ReAMX<br/>
 ReAPI<br/>
 ReHLDS & ReGameDLL<br/>
 
-### Console Command<br/>
+### Console Command
 amx_startmatch<br/>
 amx_stopmatch<br/>
 amx_restartmatch<br/>
 
-### Updated Cvars<br/>
+### Updated Cvars
 amx_warprefix "||Pub WAR||" // Your Server Tag<br/>
 amx_overtime "0" // 1 - To enable | 0 - To disable<br/>
 amx_noreset "0" //0 - To allow reset during match | 1 - To block reset<br/>
 amx_automap "1" // 0- Disable | 1- Enable<br/>
 
 
-### Changelog 2.0:-<br/>
+### Changelog 2.0:
 -Added Prefix Support<br/>
 -Added AMX 1.9.0+ Color Chat support<br/>
 -Added Support for AMX 1.8.2 - Not Tested.
@@ -47,4 +47,4 @@ amx_automap "1" // 0- Disable | 1- Enable<br/>
 -Removed Unwanted Modules/Codes<br/>
 -Added Support REAPI Enable or Disable Just comment #define USE_REAPI to disable using reapi feature.<br/>
 
-### NOTE: You can run v2 version of pub war with any mod any map. <br/>
+### NOTE: You can run v2 version of pub war with any mod any map.
