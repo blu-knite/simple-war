@@ -1938,7 +1938,7 @@ public StartMatch()
     new ServerName[512]
 
     //change server name
-    formatex(ServerName,charsmax(ServerName),"%s- %s VS. %s In Progress", prefix, FirstCaptainName,SecondCaptainName)
+    formatex(ServerName,charsmax(ServerName),"%s- %s VS. %s", prefix, FirstCaptainName,SecondCaptainName)
 
     server_cmd("hostname ^"%s^"",ServerName)
 
