@@ -1950,11 +1950,7 @@ public StartMatch()
     //Set the status of half to first half.
     isFirstHalfStarted = true
 
-    #if defined LIVE_DHUD
-    set_task(12.0, "ShowHUD_LiveLive");
-    #else
-    set_task(12.0,"FirstHalfHUDMessage")
-    #endif
+    set_task(12.0,"FirstHalfHUDMessage");
 
     #if defined SOUND
     PlaySound(2);
@@ -2035,11 +2031,7 @@ public SwapTeamsAndRestartMatch()
     isFirstHalfStarted = false
     isSecondHalfStarted = true
 
-    #if defined LIVE_DHUD
-    set_task(12.0, "ShowHUD_LiveLive");
-    #else
-    set_task(14.0,"SecondHalfHUDMessage")
-    #endif
+    set_task(14.0,"SecondHalfHUDMessage");
 
     LoadMatchSettings()
 
@@ -2538,14 +2530,29 @@ public GiveRestartRound( )
 //All MESSAGES.
 public FirstHalfHUDMessage()
 {
+	#if defined LIVE_DHUD
+	ShowHUD_LiveLive()
+	#else
     set_dhudmessage(0, 255, 255, -1.0, -1.0, 0, 2.0, 3.0, 0.8, 0.8)
     show_dhudmessage(0,"={ First Half Started ! }=^n --[ %s ]--^n--[ %s ]--^n--[ %s ]--","LIVE !!! GL & HF","LIVE !!! GL & HF","LIVE !!! GL & HF")
+    #endif
 }
 
 public SecondHalfHUDMessage()
 {
+	RestoreScore()
 
-    new players[32], num
+	#if defined LIVE_DHUD
+    ShowHUD_LiveLive()
+    #else
+    set_dhudmessage(0, 255, 255, -1.0, -1.0, 0, 2.0, 3.0, 0.8, 0.8)
+    show_dhudmessage(0,"={ Second Half Started ! }=^n --[ %s ]--^n--[ %s ]--^n--[ %s ]--","LIVE !!!","LIVE !!! ","LIVE !!! ")
+    #endif
+}
+
+public RestoreScore()
+{
+	new players[32], num
     get_players(players, num,"h")
     
     new player
@@ -2559,9 +2566,6 @@ public SecondHalfHUDMessage()
         }
 
     }
-
-    set_dhudmessage(0, 255, 255, -1.0, -1.0, 0, 2.0, 3.0, 0.8, 0.8)
-    show_dhudmessage(0,"={ Second Half Started ! }=^n --[ %s ]--^n--[ %s ]--^n--[ %s ]--","LIVE !!!","LIVE !!! ","LIVE !!! ")
 }
 
 public SecondHalfOverTimeHUDMessage()
