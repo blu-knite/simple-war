@@ -46,5 +46,6 @@ amx_automap "1" // 0- Disable | 1- Enable<br/>
 -Added Map file amxmodx/configs/maps_war.ini use this file to read war auto maps vote.<br/>
 -Removed Unwanted Modules/Codes<br/>
 -Added Support REAPI Enable or Disable Just comment #define USE_REAPI to disable using reapi feature.<br/>
+-Added Logging for moderators & server owners.<br/>
 
 ### NOTE: You can run v2 version of pub war with any mod any map.

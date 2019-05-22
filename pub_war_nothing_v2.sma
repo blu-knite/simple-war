@@ -10,9 +10,9 @@
 	#include <colorchat>
 #endif
 
-#define PLUGIN "||ECS|| PuB War"
+#define PLUGIN "Pub WAR Lite"
 #define VERSION "2.0"
-#define AUTHOR "||ECS||nUy aka Abhishek Deshkar"
+#define AUTHOR "Abhishek Deshkar"//Revised & Optimised by $[K]Y~#Rocks
 
 //To Enable REAPI Module usage uncomment #define USE_REAPI
 #define USE_REAPI
