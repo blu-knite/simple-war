@@ -28,6 +28,7 @@
 
 //WAR CFG location default cstrike folder
 #define warcfg "war.cfg"
+#define WARLOG_FILE "addons/amxmodx/logs/PubWAR.log"
 
 #if defined SOUND
 new sound_files[5][]=
@@ -534,12 +535,12 @@ public RestartMatch(id,lvl,cid)
         new MatchRestarterAuthID[128] 
         get_user_authid(id, MatchRestarterAuthID, 127)
 
-        log_amx("Admin %s with ID = %i and AuthID %s has restarted the Match !",MatchRestarterName,id,MatchRestarterAuthID)
-
         server_cmd("mp_freezetime 999");
 
         set_dhudmessage(0, 255, 0, -1.0, -1.0, 0, 2.0, 6.0, 0.8, 0.8)
         show_dhudmessage(0,"Admin has restarted the Match ! ^n Captains will be chosen shortly..")
+
+        log_to_file(WARLOG_FILE, "[%s] %s has restarted the Match", MatchRestarterName, MatchRestarterAuthID)
 
         set_task(8.0,"RestartMatchTask",id)
 
@@ -571,12 +572,12 @@ public StopMatch(id,lvl, cid)
         new MatchStopperAuthID[128] 
         get_user_authid(id, MatchStopperAuthID, 128)
 
-        log_amx("Admin %s with AuthID %s has stopped the Match !",MatchStopperName,MatchStopperAuthID)
-
         server_cmd("mp_freezetime 999");
 
         set_dhudmessage(0, 255, 0, -1.0, -1.0, 0, 2.0, 6.0, 0.8, 0.8)
         show_dhudmessage(0,"Admin has Stopped the Match ! ^n Server will restart now.")
+
+        log_to_file(WARLOG_FILE, "[%s] %s has Stopped the Match", MatchStopperName,MatchStopperAuthID)
 
         set_task(8.0,"RestartServerForStoppingMatch")
 
@@ -922,7 +923,8 @@ public logevent_round_start()
         client_print_color(0, print_team_default, "^3%s ^4 ^3Knife Round ^1has ^4been started ! ", prefix)
         client_print_color(0, print_team_default, "^3%s ^4 Knife War: ^1Captain- ^3 %s ^4Vs. ^1Captain- ^3%s", prefix, TempFirstCaptain,TempSecondCaptain)
         client_print_color(0, print_team_default, "^3%s ^4 Knife War: ^1Captain- ^3 %s ^4Vs. ^1Captain- ^3%s", prefix, TempFirstCaptain,TempSecondCaptain)
-     
+     	
+     	log_to_file(WARLOG_FILE, "Knife WAR  [%s] Vs. [%s]", TempFirstCaptain,TempSecondCaptain);
     }
     
 	if(g_MatchStarted)
@@ -1038,6 +1040,7 @@ public ShowMenu(id, lvl, cid)
     //Send message to players about message.
 	MatchInitHudMessage()
 
+	log_to_file(WARLOG_FILE, "[%s] %s has Started the Match", MatchStarterName, MatchStarterAuthID);
 
     //Task 2 - Show Players Menu to who started the match.
 	set_task(3.0, "ShowMenuPlayers", id)
@@ -1133,7 +1136,8 @@ public PlayersMenuHandler( id, iMenu, iItem )
 
 			new ChosenCaptain[32] 
 			get_user_name(iPlayer, ChosenCaptain, charsmax(ChosenCaptain)) 
-			client_print_color(0, print_team_default, "^3%s ^4Player  ^3%s chosen ^1as  First ^3Captain! ", prefix, ChosenCaptain)  
+			client_print_color(0, print_team_default, "^3%s ^4Player  ^3%s chosen ^1as  First ^3Captain! ", prefix, ChosenCaptain) 
+			log_to_file(WARLOG_FILE, "[%s] selected as First Captain", ChosenCaptain) 
 
 			CaptainCount++  
 
@@ -1165,6 +1169,7 @@ public PlayersMenuHandler( id, iMenu, iItem )
 			new ChosenCaptain[32] 
 			get_user_name(iPlayer, ChosenCaptain, charsmax(ChosenCaptain)) 
 			client_print_color(0, print_team_default, "^3%s ^4Player  ^3%s chosen ^1as Second ^3Captain! ", prefix, ChosenCaptain)
+			log_to_file(WARLOG_FILE, "[%s] selected as Second Captain", ChosenCaptain)
 
 			CaptainCount++
 
@@ -1944,6 +1949,8 @@ public StartMatch()
 
     ServerName[0] = 0
 
+    log_to_file(WARLOG_FILE, "WAR LIVE [ %s ] VS [ %s ]", FirstCaptainName,SecondCaptainName);
+
     set_task(11.0,"MatchStartedTrue")
 
 
@@ -2024,6 +2031,8 @@ public SwapTeamsAndRestartMatch()
 
     client_print_color(0, print_team_default, "^3%s ^4Teams ^1Have Been ^4Swapped !", prefix);
     client_print_color(0, print_team_default, "^3%s ^4Second half ^1has been ^4Started !", prefix);
+
+    log_to_file(WARLOG_FILE, "WAR LIVE Second Half Started");
     
     is_secondHalf = true
 
@@ -2204,6 +2213,8 @@ public FirstTeamWonTheMatch()
 	show_dhudmessage(0,"Team [ %s ]  Won The Match !! ^n GG WP To Team %s ..",FirstCaptainName,FirstCaptainName)
 
 	set_cvar_string("amx_warname","|| WAR About To Start! ||")
+
+	log_to_file(WARLOG_FILE, "[ %s ] Won the Match", FirstCaptainName);
 }
 
 //Winner message. - Second team won!
@@ -2212,8 +2223,9 @@ public SecondTeamWonTheMatch()
 	set_dhudmessage(0, 255, 0, -1.0, -1.0, 0, 2.0, 6.0, 0.8, 0.8)
 	show_dhudmessage(0,"Team [ %s ] Won The Match !! ^n GG WP To Team %s  !",SecondCaptainName,SecondCaptainName)
 
-
 	set_cvar_string("amx_warname","|| WAR About To Start! ||")
+
+	log_to_file(WARLOG_FILE, "[ %s ] Won the Match", SecondCaptainName);
 }
 
 //Load Match settings because match has been started !
@@ -2389,6 +2401,8 @@ public SecondCaptWonKnifeRoundWonMessage(id)
 
     client_print_color(0, print_team_default, "^3%s ^4Captain ^3%s ^4Won ^1the ^3Knife Round !", prefix, FirstCaptainName)
 
+    log_to_file(WARLOG_FILE, "[%s] Won the Knife Round", FirstCaptainName);
+
     //Match Stats: Step -2 : Insert the Knife winner in the database.========
     new KnifeRoundWonSteamID[128] 
     get_user_authid(gCptCT, KnifeRoundWonSteamID, 127)
@@ -2403,6 +2417,8 @@ public FirstCaptainWonKnifeRoundMessage(id)
 	show_dhudmessage(0,"Captain [ %s ] Won the Knife Round !",FirstCaptainName)
 
 	client_print_color(0, print_team_default, "^3%s ^4Captain ^3%s ^4Won ^1the ^3Knife Round !", prefix, FirstCaptainName)
+
+	log_to_file(WARLOG_FILE, "[%s] Won the Knife Round", FirstCaptainName);
 
 	set_task(5.0,"ChooseTeam",gCptT)
     
@@ -2641,14 +2657,18 @@ public FirstHalfCompletedHUDMessage()
 
         set_dhudmessage(0,255, 0, -1.0, -1.0, 0, 2.0, 4.0, 0.8, 0.8)
         show_dhudmessage(0, score_message)
+
+        log_to_file(WARLOG_FILE, "1st Half Score [%s] - %i Winning to [%s] - %i", FirstCaptainName,ScoreFtrstTeam,SecondCaptainName,ScoreScondteam);
     }
 
     if(ScoreScondteam > ScoreFtrstTeam)
     {
-        format(score_message, 1023, "={ First Falf Score }= ^n %s - %i ^n Winning to ^n %s - %i",SecondCaptainName,ScoreScondteam,FirstCaptainName,ScoreFtrstTeam)
+        format(score_message, 1023, "={ First Half Score }= ^n %s - %i ^n Winning to ^n %s - %i",SecondCaptainName,ScoreScondteam,FirstCaptainName,ScoreFtrstTeam)
 
         set_dhudmessage(0,255, 0, -1.0, -1.0, 0, 2.0, 4.0, 0.8, 0.8)
         show_dhudmessage(0, score_message)
+
+        log_to_file(WARLOG_FILE, "1st Half Score [%s] - %i Winning to [%s] - %i", SecondCaptainName,ScoreScondteam,FirstCaptainName,ScoreFtrstTeam);
     }
 
     if(ScoreFtrstTeam == ScoreScondteam)
@@ -2657,6 +2677,8 @@ public FirstHalfCompletedHUDMessage()
 
         set_dhudmessage(0,255, 0, -1.0, -1.0, 0, 2.0, 4.0, 0.8, 0.8)
         show_dhudmessage(0, score_message)
+
+        log_to_file(WARLOG_FILE, "1st Half Score Both Teams Have Won %i Rounds.", ScoreScondteam);
     }
 }
 
@@ -2670,6 +2692,8 @@ public SecondHalfCompletedHUDMessage()
 
         set_dhudmessage(0,255, 0, -1.0, -1.0, 0, 2.0, 4.0, 0.8, 0.8)
         show_dhudmessage(0, score_message)
+
+        log_to_file(WARLOG_FILE, "Final Score [%s] - %i Winning to [%s] - %i", FirstCaptainName,ScoreFtrstTeam,SecondCaptainName,ScoreScondteam);
     }
 
     if(ScoreScondteam > ScoreFtrstTeam)
@@ -2678,14 +2702,18 @@ public SecondHalfCompletedHUDMessage()
 
         set_dhudmessage(0,255, 0, -1.0, -1.0, 0, 2.0, 4.0, 0.8, 0.8)
         show_dhudmessage(0, score_message)
+
+        log_to_file(WARLOG_FILE, "Final Score [%s] - %i Winning to [%s] - %i", SecondCaptainName,ScoreScondteam,FirstCaptainName,ScoreFtrstTeam);
     }
 
     if(ScoreFtrstTeam == ScoreScondteam)
     {
-        format(score_message, 1023, "={ Match Score }=^n Both Teams Have Won %i Rounds.")
+        format(score_message, 1023, "={ Match Score }=^n Both Teams Have Won %i Rounds.", ScoreScondteam)
 
         set_dhudmessage(0,255, 0, -1.0, -1.0, 0, 2.0, 6.0, 0.8, 0.8)
         show_dhudmessage(0, score_message)
+
+        log_to_file(WARLOG_FILE, "Final Score Both Teams Have Won %i Rounds.", ScoreScondteam);
     }
 
 }
@@ -2698,7 +2726,6 @@ public MatchIsOverHUDMessage()
 
 public MatchIsDrawHUDMessage()
 {
-
     set_dhudmessage(0,255, 0, -1.0, -1.0, 0, 2.0, 3.0, 0.8, 0.8)
     show_dhudmessage(0,"={ Match Is Draw!! }=")
 }
