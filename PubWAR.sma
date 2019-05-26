@@ -20,6 +20,7 @@
 #if defined USE_REAPI
 	#include <reapi>
 #endif
+
 //To Enable Sound Feature uncomment #define SOUND
 //#define SOUND
 
@@ -540,7 +541,7 @@ public RestartMatch(id,lvl,cid)
         set_dhudmessage(0, 255, 0, -1.0, -1.0, 0, 2.0, 6.0, 0.8, 0.8)
         show_dhudmessage(0,"Admin has restarted the Match ! ^n Captains will be chosen shortly..")
 
-        log_to_file(WARLOG_FILE, "[%s] %s has restarted the Match", MatchRestarterName, MatchRestarterAuthID)
+        log_to_file(WARLOG_FILE, "|Restart Match| [%s] %s has restarted the Match", MatchRestarterName, MatchRestarterAuthID)
 
         set_task(8.0,"RestartMatchTask",id)
 
@@ -577,7 +578,7 @@ public StopMatch(id,lvl, cid)
         set_dhudmessage(0, 255, 0, -1.0, -1.0, 0, 2.0, 6.0, 0.8, 0.8)
         show_dhudmessage(0,"Admin has Stopped the Match ! ^n Server will restart now.")
 
-        log_to_file(WARLOG_FILE, "[%s] %s has Stopped the Match", MatchStopperName,MatchStopperAuthID)
+        log_to_file(WARLOG_FILE, "|Stopped Match| [%s] %s has Stopped the Match", MatchStopperName,MatchStopperAuthID)
 
         set_task(8.0,"RestartServerForStoppingMatch")
 
@@ -924,7 +925,7 @@ public logevent_round_start()
         client_print_color(0, print_team_default, "^3%s ^4 Knife War: ^1Captain- ^3 %s ^4Vs. ^1Captain- ^3%s", prefix, TempFirstCaptain,TempSecondCaptain)
         client_print_color(0, print_team_default, "^3%s ^4 Knife War: ^1Captain- ^3 %s ^4Vs. ^1Captain- ^3%s", prefix, TempFirstCaptain,TempSecondCaptain)
      	
-     	log_to_file(WARLOG_FILE, "Knife WAR  [%s] Vs. [%s]", TempFirstCaptain,TempSecondCaptain);
+     	log_to_file(WARLOG_FILE, "|Knife WAR| [%s] Vs. [%s]", TempFirstCaptain,TempSecondCaptain);
     }
     
 	if(g_MatchStarted)
@@ -1040,7 +1041,7 @@ public ShowMenu(id, lvl, cid)
     //Send message to players about message.
 	MatchInitHudMessage()
 
-	log_to_file(WARLOG_FILE, "[%s] %s has Started the Match", MatchStarterName, MatchStarterAuthID);
+	log_to_file(WARLOG_FILE, "|Started Match| [%s] %s has Started the Match", MatchStarterName, MatchStarterAuthID);
 
     //Task 2 - Show Players Menu to who started the match.
 	set_task(3.0, "ShowMenuPlayers", id)
@@ -1137,7 +1138,7 @@ public PlayersMenuHandler( id, iMenu, iItem )
 			new ChosenCaptain[32] 
 			get_user_name(iPlayer, ChosenCaptain, charsmax(ChosenCaptain)) 
 			client_print_color(0, print_team_default, "^3%s ^4Player  ^3%s chosen ^1as  First ^3Captain! ", prefix, ChosenCaptain) 
-			log_to_file(WARLOG_FILE, "[%s] selected as First Captain", ChosenCaptain) 
+			log_to_file(WARLOG_FILE, "|1st Captain| [%s] selected as First Captain", ChosenCaptain) 
 
 			CaptainCount++  
 
@@ -1169,7 +1170,7 @@ public PlayersMenuHandler( id, iMenu, iItem )
 			new ChosenCaptain[32] 
 			get_user_name(iPlayer, ChosenCaptain, charsmax(ChosenCaptain)) 
 			client_print_color(0, print_team_default, "^3%s ^4Player  ^3%s chosen ^1as Second ^3Captain! ", prefix, ChosenCaptain)
-			log_to_file(WARLOG_FILE, "[%s] selected as Second Captain", ChosenCaptain)
+			log_to_file(WARLOG_FILE, "|2nd Captain| [%s] selected as Second Captain", ChosenCaptain)
 
 			CaptainCount++
 
@@ -1949,7 +1950,8 @@ public StartMatch()
 
     ServerName[0] = 0
 
-    log_to_file(WARLOG_FILE, "WAR LIVE [ %s ] VS [ %s ]", FirstCaptainName,SecondCaptainName);
+    log_to_file(WARLOG_FILE, "|--LIVE--| [ %s ] VS [ %s ]", FirstCaptainName,SecondCaptainName);
+    log_to_file(WARLOG_FILE, "|1st Half| LIVE LIVE LIVE");
 
     set_task(11.0,"MatchStartedTrue")
 
@@ -2032,7 +2034,7 @@ public SwapTeamsAndRestartMatch()
     client_print_color(0, print_team_default, "^3%s ^4Teams ^1Have Been ^4Swapped !", prefix);
     client_print_color(0, print_team_default, "^3%s ^4Second half ^1has been ^4Started !", prefix);
 
-    log_to_file(WARLOG_FILE, "WAR LIVE Second Half Started");
+    log_to_file(WARLOG_FILE, "|2nd Half| LIVE LIVE LIVE");
     
     is_secondHalf = true
 
@@ -2214,7 +2216,7 @@ public FirstTeamWonTheMatch()
 
 	set_cvar_string("amx_warname","|| WAR About To Start! ||")
 
-	log_to_file(WARLOG_FILE, "[ %s ] Won the Match", FirstCaptainName);
+	log_to_file(WARLOG_FILE, "|Winner| [ %s ] Won the Match", FirstCaptainName);
 }
 
 //Winner message. - Second team won!
@@ -2225,7 +2227,7 @@ public SecondTeamWonTheMatch()
 
 	set_cvar_string("amx_warname","|| WAR About To Start! ||")
 
-	log_to_file(WARLOG_FILE, "[ %s ] Won the Match", SecondCaptainName);
+	log_to_file(WARLOG_FILE, "|Winner| [ %s ] Won the Match", SecondCaptainName);
 }
 
 //Load Match settings because match has been started !
@@ -2401,7 +2403,7 @@ public SecondCaptWonKnifeRoundWonMessage(id)
 
     client_print_color(0, print_team_default, "^3%s ^4Captain ^3%s ^4Won ^1the ^3Knife Round !", prefix, FirstCaptainName)
 
-    log_to_file(WARLOG_FILE, "[%s] Won the Knife Round", FirstCaptainName);
+    log_to_file(WARLOG_FILE, "|Knife Winner| [%s] Won the Knife Round", FirstCaptainName);
 
     //Match Stats: Step -2 : Insert the Knife winner in the database.========
     new KnifeRoundWonSteamID[128] 
@@ -2418,7 +2420,7 @@ public FirstCaptainWonKnifeRoundMessage(id)
 
 	client_print_color(0, print_team_default, "^3%s ^4Captain ^3%s ^4Won ^1the ^3Knife Round !", prefix, FirstCaptainName)
 
-	log_to_file(WARLOG_FILE, "[%s] Won the Knife Round", FirstCaptainName);
+	log_to_file(WARLOG_FILE, "|Knife Winner| [%s] Won the Knife Round", FirstCaptainName);
 
 	set_task(5.0,"ChooseTeam",gCptT)
     
@@ -2658,7 +2660,7 @@ public FirstHalfCompletedHUDMessage()
         set_dhudmessage(0,255, 0, -1.0, -1.0, 0, 2.0, 4.0, 0.8, 0.8)
         show_dhudmessage(0, score_message)
 
-        log_to_file(WARLOG_FILE, "1st Half Score [%s] - %i Winning to [%s] - %i", FirstCaptainName,ScoreFtrstTeam,SecondCaptainName,ScoreScondteam);
+        log_to_file(WARLOG_FILE, "|1st Half Score| [%s] - %i Winning to [%s] - %i", FirstCaptainName,ScoreFtrstTeam,SecondCaptainName,ScoreScondteam);
     }
 
     if(ScoreScondteam > ScoreFtrstTeam)
@@ -2668,7 +2670,7 @@ public FirstHalfCompletedHUDMessage()
         set_dhudmessage(0,255, 0, -1.0, -1.0, 0, 2.0, 4.0, 0.8, 0.8)
         show_dhudmessage(0, score_message)
 
-        log_to_file(WARLOG_FILE, "1st Half Score [%s] - %i Winning to [%s] - %i", SecondCaptainName,ScoreScondteam,FirstCaptainName,ScoreFtrstTeam);
+        log_to_file(WARLOG_FILE, "|1st Half Score| [%s] - %i Winning to [%s] - %i", SecondCaptainName,ScoreScondteam,FirstCaptainName,ScoreFtrstTeam);
     }
 
     if(ScoreFtrstTeam == ScoreScondteam)
@@ -2678,7 +2680,7 @@ public FirstHalfCompletedHUDMessage()
         set_dhudmessage(0,255, 0, -1.0, -1.0, 0, 2.0, 4.0, 0.8, 0.8)
         show_dhudmessage(0, score_message)
 
-        log_to_file(WARLOG_FILE, "1st Half Score Both Teams Have Won %i Rounds.", ScoreScondteam);
+        log_to_file(WARLOG_FILE, "|1st Half Score| Both Teams Have Won %i Rounds.", ScoreScondteam);
     }
 }
 
@@ -2693,7 +2695,7 @@ public SecondHalfCompletedHUDMessage()
         set_dhudmessage(0,255, 0, -1.0, -1.0, 0, 2.0, 4.0, 0.8, 0.8)
         show_dhudmessage(0, score_message)
 
-        log_to_file(WARLOG_FILE, "Final Score [%s] - %i Winning to [%s] - %i", FirstCaptainName,ScoreFtrstTeam,SecondCaptainName,ScoreScondteam);
+        log_to_file(WARLOG_FILE, "|Final Score| [%s] - %i Winning to [%s] - %i", FirstCaptainName,ScoreFtrstTeam,SecondCaptainName,ScoreScondteam);
     }
 
     if(ScoreScondteam > ScoreFtrstTeam)
@@ -2703,7 +2705,7 @@ public SecondHalfCompletedHUDMessage()
         set_dhudmessage(0,255, 0, -1.0, -1.0, 0, 2.0, 4.0, 0.8, 0.8)
         show_dhudmessage(0, score_message)
 
-        log_to_file(WARLOG_FILE, "Final Score [%s] - %i Winning to [%s] - %i", SecondCaptainName,ScoreScondteam,FirstCaptainName,ScoreFtrstTeam);
+        log_to_file(WARLOG_FILE, "|Final Score| [%s] - %i Winning to [%s] - %i", SecondCaptainName,ScoreScondteam,FirstCaptainName,ScoreFtrstTeam);
     }
 
     if(ScoreFtrstTeam == ScoreScondteam)
@@ -2713,7 +2715,7 @@ public SecondHalfCompletedHUDMessage()
         set_dhudmessage(0,255, 0, -1.0, -1.0, 0, 2.0, 6.0, 0.8, 0.8)
         show_dhudmessage(0, score_message)
 
-        log_to_file(WARLOG_FILE, "Final Score Both Teams Have Won %i Rounds.", ScoreScondteam);
+        log_to_file(WARLOG_FILE, "|Final Score| Both Teams Have Won %i Rounds.", ScoreScondteam);
     }
 
 }
