@@ -1137,8 +1137,8 @@ public PlayersMenuHandler( id, iMenu, iItem )
 
 			new ChosenCaptain[32] 
 			get_user_name(iPlayer, ChosenCaptain, charsmax(ChosenCaptain)) 
-			client_print_color(0, print_team_default, "^3%s ^4Player  ^3%s chosen ^1as  First ^3Captain! ", prefix, ChosenCaptain) 
-			log_to_file(WARLOG_FILE, "|1st Captain| [%s] selected as First Captain", ChosenCaptain) 
+			client_print_color(0, print_team_default, "^3%s ^4Player  ^3%s selected ^1as  First ^3Captain! ", prefix, ChosenCaptain) 
+			log_to_file(WARLOG_FILE, "|1st Captain| [ %s ]", ChosenCaptain) 
 
 			CaptainCount++  
 
@@ -1169,8 +1169,8 @@ public PlayersMenuHandler( id, iMenu, iItem )
 
 			new ChosenCaptain[32] 
 			get_user_name(iPlayer, ChosenCaptain, charsmax(ChosenCaptain)) 
-			client_print_color(0, print_team_default, "^3%s ^4Player  ^3%s chosen ^1as Second ^3Captain! ", prefix, ChosenCaptain)
-			log_to_file(WARLOG_FILE, "|2nd Captain| [%s] selected as Second Captain", ChosenCaptain)
+			client_print_color(0, print_team_default, "^3%s ^4Player  ^3%s selected ^1as Second ^3Captain! ", prefix, ChosenCaptain)
+			log_to_file(WARLOG_FILE, "|2nd Captain| [ %s ]", ChosenCaptain)
 
 			CaptainCount++
 
@@ -1467,7 +1467,7 @@ public LetsFirstChoosePlayersHandler( id, iChoosePlayers, iItem )
         get_user_name(iPlayer, ChoosenPlayer, charsmax(ChoosenPlayer)) 
      
 
-        client_print_color(0, print_team_default, "^3%s ^4Captain ^3%s ^4chose ^1Player ^4%s ", prefix, FirstCaptainName,ChoosenPlayer);
+        client_print_color(0, print_team_default, "^3%s ^4Captain ^3%s ^4selected ^1Player ^4%s ", prefix, FirstCaptainName,ChoosenPlayer);
 
         
 
@@ -1602,7 +1602,7 @@ public LetsSecondChoosePlayersHandler( id, iChoosePlayers, iItem )
         get_user_name(iPlayer, ChoosenPlayer, charsmax(ChoosenPlayer)) 
      
 
-        client_print_color(0, print_team_default, "^3%s ^4Captain ^3%s ^4chose ^1Player ^4%s", prefix, SecondCaptainName,ChoosenPlayer);
+        client_print_color(0, print_team_default, "^3%s ^4Captain ^3%s ^4selected ^1Player ^4%s", prefix, SecondCaptainName,ChoosenPlayer);
 
         if(!is_user_connected(iPlayer))
         {
