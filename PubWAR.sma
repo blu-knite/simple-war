@@ -28,7 +28,8 @@
 //#define LIVE_DHUD
 
 //WAR CFG location default cstrike folder
-#define warcfg "war.cfg"
+#define cvarscfg "addons/amxmodx/configs/war/cvars.cfg"
+#define warcfg "addons/amxmodx/configs/war/war.cfg"
 #define WARLOG_FILE "addons/amxmodx/logs/PubWAR.log"
 
 #if defined SOUND
@@ -293,7 +294,9 @@ public plugin_init()
     gMaxPlayers = get_maxplayers()
 
     get_configsdir(g_Maps_Ini_File, 63); 
-	formatex(g_Maps_Ini_File, 63, "%s/maps_war.ini", g_Maps_Ini_File);
+	formatex(g_Maps_Ini_File, 63, "%s/war/maps.ini", g_Maps_Ini_File);
+
+	server_cmd("exec %s", cvarscfg);
 }
 
 
