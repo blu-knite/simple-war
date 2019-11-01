@@ -21,6 +21,9 @@
 	#include <reapi>
 #endif
 
+//To Enable Sound Feature uncomment #define SOUND
+//#define SOUND
+
 //To Enable Disable NEW LIVE HUD Feature.
 //#define LIVE_DHUD
 
@@ -28,6 +31,18 @@
 #define cvarscfg "addons/amxmodx/configs/war/cvars.cfg"
 #define warcfg "addons/amxmodx/configs/war/war.cfg"
 #define WARLOG_FILE "addons/amxmodx/logs/PubWAR.log"
+
+#if defined SOUND
+new sound_files[5][]=
+{
+	"sound/war_captain.mp3", //0 captain select
+	"sound/war_playerselection.mp3", //1 player select
+	"sound/war_firsthalf.mp3", //2 first half
+	"sound/war_secondhalf.mp3", //3 second half
+	"sound/war_end.mp3" //4 match end score board
+	// these files are example update according to your needs.
+}
+#endif
 
 //Set frags.
 new Frags[33], Deaths[33];
@@ -39,6 +54,55 @@ new cvar_overtime;
 
 //Game Description
 new amx_warname
+
+// AFK BOMB
+// comment to avoid autodisabling the plugin on maps which not contain bomb targets
+//#define BOMB_MAP_CHECK
+
+// float value, hud messages display time (in seconds)
+#define MSG_TIME 7.0
+
+// CVAR name, affects on spawned AFK bomb carrier which never moved after spawn
+new CVAR_SPAWN[] = "afk_bombtransfer_spawn"
+
+// CVAR value, max. allowed bomb carrier AFK time (in seconds)
+new DEFAULT_SPAWN[] = "7"
+
+// CVAR name, affects on any AFK bomb carrier except one which obey previous CVAR
+new CVAR_TIME[] = "afk_bombtransfer_time"
+
+// CVAR value, max. allowed bomb carrier AFK time (in seconds)
+new DEFAULT_TIME[] = "15"
+
+// do not set this value less than "maxplayers"
+#define MAX_PLAYERS 32
+
+// initial AMXX version number supported CVAR pointers in get/set_pcvar_* natives
+#define CVAR_POINTERS_AMXX_INIT_VER_NUM 170
+
+// determine if get/set_pcvar_* natives can be used
+#if defined AMXX_VERSION_NUM && AMXX_VERSION_NUM >= CVAR_POINTERS_AMXX_INIT_VER_NUM
+	#define CVAR_POINTERS
+	new g_pcvar_spawn
+	new g_pcvar_time
+#endif
+
+new TEAM[] = "TERRORIST"
+new WEAPON[] = "weapon_c4"
+
+#define	FL_ONGROUND (1<<9)
+
+new bool:g_freezetime = true
+new bool:g_spawn
+new bool:g_planting
+
+new g_carrier
+
+new g_pos[MAX_PLAYERS + 1][3]
+new g_time[MAX_PLAYERS + 1]
+
+new g_maxplayers
+// AFK BOMB END
 
 //Ranking system.
 new g_TotalKills[33]
@@ -167,6 +231,32 @@ public plugin_init()
 	register_forward( FM_GetGameDescription, "GameDesc" );
 	set_pcvar_string(amx_warname, "|| WAR About to Start ||");
 
+	// AFK declaration
+#if defined CVAR_POINTERS
+	g_pcvar_spawn = register_cvar(CVAR_SPAWN, DEFAULT_SPAWN)
+	g_pcvar_time = register_cvar(CVAR_TIME, DEFAULT_TIME)
+#else
+	register_cvar(CVAR_SPAWN, DEFAULT_SPAWN)
+	register_cvar(CVAR_TIME, DEFAULT_TIME)
+#endif
+
+#if defined BOMB_MAP_CHECK
+	// is current map not contain bomb targets?
+	if (!engfunc(EngFunc_FindEntityByString, -1, "classname", "func_bomb_target"))
+		return
+#endif
+
+	register_event("WeapPickup", "event_got_bomb", "be", "1=6")
+	register_event("BarTime", "event_bar_time", "be")
+	register_event("TextMsg", "event_bomb_drop", "bc", "2=#Game_bomb_drop")
+	register_event("TextMsg", "event_bomb_drop", "a", "2=#Bomb_Planted")
+	register_event("HLTV", "event_new_round", "a", "1=0", "2=0")
+
+	set_task(1.0, "task_afk_check", _, _, _, "b") // plugin's core loop
+
+	g_maxplayers = get_maxplayers()
+	// AFK End
+
     //block advertise by cs
 	set_msg_block(get_user_msgid("HudTextArgs"), BLOCK_SET);
 
@@ -192,6 +282,7 @@ public plugin_init()
 
     //show score.
 	register_clcmd("say !score", "ShowScoreToUser")
+
 
     //Get Team Players menu.
 	register_clcmd("say /getmenu","GetMatchMenu")
@@ -219,6 +310,151 @@ public reset_block(id)
 	}
 	return PLUGIN_CONTINUE;
 }
+
+// Sound Declaration
+#if defined SOUND
+public plugin_precache()
+{
+	for(new i=0 ; i < sizeof sound_files; i++)
+    {
+        precache_generic(sound_files[i]);
+    }
+}
+
+public PlaySound(soundcode)
+{
+	switch(soundcode)
+	{
+		case 0: 
+		{
+			client_cmd(0, "mp3 play %s", sound_files[0]);
+		}
+		case 1:
+		{
+			client_cmd(0, "mp3 play %s", sound_files[1]);
+		}
+		case 2:
+		{
+			client_cmd(0, "mp3 play %s", sound_files[2]);
+		}
+		case 3:
+		{
+			client_cmd(0, "mp3 play %s", sound_files[3]);
+		}
+		case 4:
+		{
+			client_cmd(0, "mp3 play %s", sound_files[4]);
+		}
+	}
+}
+#endif
+
+//Bomb afk transfer declarations.
+public event_new_round() {
+	g_freezetime = true
+	g_spawn = true
+	g_planting = false
+	g_carrier = 0
+}
+
+public event_got_bomb(id) {
+	g_carrier = id
+}
+
+public event_bar_time(id) {
+	if (id == g_carrier) {
+		g_planting = bool:read_data(1)
+		get_user_origin(id, g_pos[id])
+		g_time[id] = 0
+	}
+}
+
+public event_bomb_drop() {
+	g_spawn = false
+	g_planting = false
+	g_carrier = 0
+}
+
+public task_afk_check() {
+	if (g_freezetime) // is freezetime right now?
+		return
+
+	// afk check
+	new id[32], num, x, origin[3]
+	get_players(id, num, "ae", TEAM)
+	for (new i = 0; i < num; ++i) {
+		x = id[i]
+		get_user_origin(x, origin)
+		if (origin[0] != g_pos[x][0] || origin[1] != g_pos[x][1] || (x == g_carrier && g_planting)) {
+			g_time[x] = 0
+			g_pos[x][0] = origin[0]
+			g_pos[x][1] = origin[1]
+			if (g_spawn && x == g_carrier)
+				g_spawn = false
+		}
+		else
+			g_time[x]++
+	}
+
+	// is bomb not currently carried or Ts number less than 2?
+	if (!g_carrier || num < 2)
+		return
+
+#if defined CVAR_POINTERS
+	new max_time = get_pcvar_num(g_spawn ? g_pcvar_spawn : g_pcvar_time)
+#else
+	new max_time = get_cvar_num(g_spawn ? CVAR_SPAWN : CVAR_TIME)
+#endif
+
+	// is plugin disabled (cvar <= 0) or carrier isn't afk?
+	if (max_time <= 0 || g_time[g_carrier] < max_time)
+		return
+
+	// find who from non-afk Ts is the closest to the afk carrier
+	get_user_origin(g_carrier, origin)
+	new min_dist = 999999, dist, recipient, origin2[3]
+	for (new i = 0; i < num; ++i) {
+		x = id[i]
+		if (g_time[x] < max_time) {
+			get_user_origin(x, origin2)
+			dist = get_distance(origin, origin2)
+			if (dist < min_dist) {
+				min_dist = dist
+				recipient = x
+			}
+		}
+	}
+
+	if (!recipient) // is all Ts afk?
+		return
+
+	new carrier = g_carrier
+	engclient_cmd(carrier, "drop", WEAPON) // drop the backpack
+	new c4 = engfunc(EngFunc_FindEntityByString, -1, "classname", WEAPON) // find weapon_c4 entity
+	if (!c4)
+		return
+
+	new backpack = pev(c4, pev_owner) // get backpack entity
+	if (backpack <= g_maxplayers)
+		return
+
+	// my backpack transfer trick (improved)
+	set_pev(backpack, pev_flags, pev(backpack, pev_flags) | FL_ONGROUND)
+	dllfunc(DLLFunc_Touch, backpack, recipient)
+
+	// hud messages stuff below
+	set_hudmessage(0, 255, 0, 0.35, 0.8, _, _, MSG_TIME)
+	new message[128], c_name[32], r_name[32]
+	get_user_name(carrier, c_name, 31)
+	get_user_name(recipient, r_name, 31)
+	format(message, 127, "Bomb transferred to ^"%s^"^nsince ^"%s^" is AFK", r_name, c_name)
+	for (new i = 0; i < num; ++i)
+		show_hudmessage(id[i], "%s", message)
+
+	set_hudmessage(255, 255, 0, 0.42, 0.3, _, _, MSG_TIME, _, _, 3)
+	show_hudmessage(recipient, "You got the bomb!")
+}
+// AFK END
 
 //Game description forward.
 public GameDesc() 
@@ -701,6 +937,22 @@ public logevent_round_start()
 		ShowScoreHud()
 		set_task(3.0,"ShowScoreOnRoundStart")
 	}
+
+	new id[32], num
+	get_players(id, num, "ae", TEAM)
+
+	if (!num) // is server empty?
+		return
+
+	g_freezetime = false
+
+	// update afk timers and current positions
+	new x
+	for (new i = 0; i < num; ++i) {
+		x = id[i]
+		get_user_origin(x, g_pos[x])
+		g_time[x] = 0
+	}
 }
 
 //When Client join the server and if match is initialized or Knife round is running transfer player to spec.
@@ -796,6 +1048,10 @@ public ShowMenu(id, lvl, cid)
 
     //Task 2 - Show Players Menu to who started the match.
 	set_task(3.0, "ShowMenuPlayers", id)
+
+	#if defined SOUND
+	PlaySound(0);
+	#endif
 
 	return PLUGIN_HANDLED;
 }
@@ -1128,6 +1384,10 @@ public TeamHandler(id, TeamChooser, iItem )
 // MENU TO CHOOSE PLAYERS !!!
 public LetsFirstChoosePlayers(id)
 {
+	#if defined SOUND
+	PlaySound(1);
+	#endif
+
 	new players[32], count;     
 	get_players(players, count,"eh","SPECTATOR"); 
 
@@ -1525,6 +1785,10 @@ public DoRanking()
 	new taskId = 6969        
 	set_task(1.0, "displayRankingTable", taskId, msgToDisplay, strlen(msgToDisplay), "b")
 
+	#if defined SOUND
+    PlaySound(4);
+    #endif
+
     //Take Vote Now
     if(get_pcvar_num(cvar_automap) == 1)
     {
@@ -1699,6 +1963,10 @@ public StartMatch()
     isFirstHalfStarted = true
 
     set_task(12.0,"FirstHalfHUDMessage");
+
+    #if defined SOUND
+    PlaySound(2);
+    #endif
 }
 
 //Swap teams for Overtime message.
@@ -1780,6 +2048,10 @@ public SwapTeamsAndRestartMatch()
     set_task(14.0,"SecondHalfHUDMessage");
 
     LoadMatchSettings()
+
+    #if defined SOUND
+	PlaySound(3);
+	#endif
 }
 
 
