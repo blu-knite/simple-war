@@ -3,61 +3,43 @@
 #include <cstrike>
 #include <fun>
 #include <fakemeta>
+#include <hamsandwich>
+#include <reapi>
 #include <csx>
+#include <engine>
 
-#if AMXX_VERSION_NUM < 183
-	#include <dhudmessage>
-	#include <colorchat>
-#endif
+#define PLUGIN "||ECS|| PuB War"
+#define VERSION "1.0"
+#define AUTHOR "||ECS||nUy aka Abhishek Deshkar"
+#define SVNUM 1
 
-#define PLUGIN "Pub WAR Lite"
-#define VERSION "2.0"
-#define AUTHOR "Abhishek Deshkar"//Revised & Optimised by $[K]Y~#Rocks
-
-//To Enable REAPI Module usage uncomment #define USE_REAPI
-#define USE_REAPI
-
-#if defined USE_REAPI
-	#include <reapi>
-#endif
-
-//To Enable Sound Feature uncomment #define SOUND
-//#define SOUND
-
-//To Enable Disable NEW LIVE HUD Feature.
-//#define LIVE_DHUD
-
-//WAR CFG location default cstrike folder
-#define cvarscfg "addons/amxmodx/configs/war/cvars.cfg"
-#define warcfg "addons/amxmodx/configs/war/war.cfg"
-#define WARLOG_FILE "addons/amxmodx/logs/PubWAR.log"
-
-#if defined SOUND
-new sound_files[5][]=
-{
-	"sound/war_captain.mp3", //0 captain select
-	"sound/war_playerselection.mp3", //1 player select
-	"sound/war_firsthalf.mp3", //2 first half
-	"sound/war_secondhalf.mp3", //3 second half
-	"sound/war_end.mp3" //4 match end score board
-	// these files are example update according to your needs.
-}
-#endif
 
 //Set frags.
-new Frags[33], Deaths[33];
+new Frags[33], Deaths[33], RestartGame
 
 //======= Overtime Declarations ==================
+
 new bool:g_OverTime     = false
+
 new OTCount             = 0
-new cvar_overtime;
+
+//======= Overtime Declarations OVER =============
+
+
+//=====================  Players Selection. =====================================
+
+new g_PlayerSelected[ MAX_PLAYERS + 1]
+
+//Debug
+new DEBUG = 1
 
 //Game Description
 new amx_warname
 
-// AFK BOMB
+//Bomb AFK Manager declarations.=======================
+
 // comment to avoid autodisabling the plugin on maps which not contain bomb targets
-//#define BOMB_MAP_CHECK
+#define BOMB_MAP_CHECK
 
 // float value, hud messages display time (in seconds)
 #define MSG_TIME 7.0
@@ -66,7 +48,7 @@ new amx_warname
 new CVAR_SPAWN[] = "afk_bombtransfer_spawn"
 
 // CVAR value, max. allowed bomb carrier AFK time (in seconds)
-new DEFAULT_SPAWN[] = "7"
+new DEFAULT_SPAWN[] = "15"
 
 // CVAR name, affects on any AFK bomb carrier except one which obey previous CVAR
 new CVAR_TIME[] = "afk_bombtransfer_time"
@@ -102,7 +84,7 @@ new g_pos[MAX_PLAYERS + 1][3]
 new g_time[MAX_PLAYERS + 1]
 
 new g_maxplayers
-// AFK BOMB END
+
 
 //Ranking system.
 new g_TotalKills[33]
@@ -169,70 +151,28 @@ new szMapname[32]
 
 new RoundCounter = 0
 
+//Extra declarations
+new g_iMaxPlayers
+
 // 1 = first captain 2 = second captain.
 new CaptainChoosenID
 new WhoChoseThePlayer
 
-new cvar_prefix;
-new prefix[64];
-new cvar_noreset;
-
-#if defined LIVE_DHUD
-new iXYPos;
-new const Float:HUD_XY_POS[ ][ ] =
-{
-	{ -1.0, 0.98 },
-	{ -1.0, 0.91 },
-	{ -1.0, 0.84 },
-	{ -1.0, 0.77 },
-	{ -1.0, 0.70 },
-	{ -1.0, 0.63 },
-	{ -1.0, 0.56 },
-	{ -1.0, 0.49 },
-	{ -1.0, 0.42 },
-	{ -1.0, 0.35 },
-	{ -1.0, 0.28 },
-	{ -1.0, 0.21 },
-	{ -1.0, 0.14 },
-	{ -1.0, 0.07 },
-	{ -1.0, 0.00 }
-};
-#endif
-
-//Auto Map Vote Variables
-new g_gVoteMenu;
-new g_gVotes[5]
-new g_Maps_Ini_File[64]
-new g_MapsCounter
-new g_MapsAvailable[30][20]
-new g_MapsChosen[4][20]
-new g_DoneMaps
-new g_ChangeMapTo
-
-new cvar_automap;
 
 public plugin_init()
 {
 	register_plugin(PLUGIN, VERSION, AUTHOR);
 
-	register_clcmd("say /rs", "reset_block");
-	register_clcmd("amx_startmatch", "ShowMenu", ADMIN_KICK, "Get All The players");
-	register_clcmd("amx_stopmatch", "StopMatch", ADMIN_KICK, "Stop the Match!");
-	register_clcmd("amx_restartmatch", "RestartMatch", ADMIN_KICK, "Restart the Match!");  
+	register_clcmd("amx_startmatch", "ShowMenu", ADMIN_IMMUNITY, "Get All The players");    
 
-    //CVARS
-	cvar_prefix = register_cvar("amx_warprefix", "||Pub WAR||");
-	cvar_overtime = register_cvar("amx_overtime", "0");
-	cvar_noreset = register_cvar("amx_noreset", "0");
-	cvar_automap = register_cvar("amx_automap", "1");
+    gMaxPlayers = get_maxplayers()
 
-	//Set Game Desc
-	amx_warname = register_cvar( "amx_warname", "|| WAR About To Start! ||" ); 
-	register_forward( FM_GetGameDescription, "GameDesc" );
-	set_pcvar_string(amx_warname, "|| WAR About to Start ||");
+    //Change Game Description.
+    amx_warname = register_cvar( "amx_warname", "-= WAR About To Start! =-" ); 
+	register_forward( FM_GetGameDescription, "GameDesc" ); 
 
-	// AFK declaration
-#if defined CVAR_POINTERS
+    //Bomb AFK manager declarations.
+    #if defined CVAR_POINTERS
 	g_pcvar_spawn = register_cvar(CVAR_SPAWN, DEFAULT_SPAWN)
 	g_pcvar_time = register_cvar(CVAR_TIME, DEFAULT_TIME)
 #else
@@ -245,109 +185,57 @@ public plugin_init()
 	if (!engfunc(EngFunc_FindEntityByString, -1, "classname", "func_bomb_target"))
 		return
 #endif
-
-	register_event("WeapPickup", "event_got_bomb", "be", "1=6")
-	register_event("BarTime", "event_bar_time", "be")
-	register_event("TextMsg", "event_bomb_drop", "bc", "2=#Game_bomb_drop")
-	register_event("TextMsg", "event_bomb_drop", "a", "2=#Bomb_Planted")
+  
 	register_event("HLTV", "event_new_round", "a", "1=0", "2=0")
+
+	register_logevent("logevent_round_start_bomb", 2, "1=Round_Start")
 
 	set_task(1.0, "task_afk_check", _, _, _, "b") // plugin's core loop
 
 	g_maxplayers = get_maxplayers()
-	// AFK End
+
 
     //block advertise by cs
-	set_msg_block(get_user_msgid("HudTextArgs"), BLOCK_SET);
+    set_msg_block(get_user_msgid("HudTextArgs"), BLOCK_SET);
+	
+	g_iMaxPlayers = get_maxplayers()
 
     //Register Death.
-	register_event("DeathMsg", "Event_DeathMsg_Knife", "a", "1>0")
+    register_event("DeathMsg", "Event_DeathMsg_Knife", "a", "1>0")
 
     //For Knife round.
-	register_event("CurWeapon", "Event_CurWeapon_NotKnife", "be", "1=1", "2!29")  
+    register_event("CurWeapon", "Event_CurWeapon_NotKnife", "be", "1=1", "2!29")  
     
     //Round end event.
-	register_logevent("round_end", 2, "1=Round_End")
+    register_logevent("round_end", 2, "1=Round_End")
 
     //Round start event.
-	register_logevent("logevent_round_start", 2, "1=Round_Start")
+    register_logevent("logevent_round_start", 2, "1=Round_Start")
 
     //Do not allow clients to join the team when they manually tries to join the team.
-	register_clcmd("chooseteam", "cmdChooseTeam")
-	register_clcmd("jointeam", "GoToTheSpec");
+    register_clcmd("chooseteam", "cmdChooseTeam")
+    register_clcmd("jointeam", "GoToTheSpec");
+
+    //Stop or Restart the Match!
+    register_clcmd("amx_stopmatch", "StopMatch", ADMIN_IMMUNITY, "Stop the Match!");
+    register_clcmd("amx_restartmatch", "RestartMatch", ADMIN_IMMUNITY, "Restart the Match!");
 
     // T OR CT WIN.
-	register_event( "SendAudio","on_TerroristWin","a","2=%!MRAD_terwin");
-	register_event( "SendAudio","on_CTWin","a","2=%!MRAD_ctwin");
+    register_event( "SendAudio","on_TerroristWin","a","2=%!MRAD_terwin");
+    register_event( "SendAudio","on_CTWin","a","2=%!MRAD_ctwin");
 
     //show score.
-	register_clcmd("say !score", "ShowScoreToUser")
+    register_clcmd("say !score", "ShowScoreToUser")
 
 
     //Get Team Players menu.
-	register_clcmd("say /getmenu","GetMatchMenu")
+    register_clcmd("say /getmenu","GetMatchMenu")
    
-	get_mapname(szMapname, charsmax(szMapname))
+    get_mapname(szMapname, charsmax(szMapname))
 
-    get_pcvar_string(cvar_prefix, prefix, charsmax(prefix))
-
-    gMaxPlayers = get_maxplayers()
-
-    get_configsdir(g_Maps_Ini_File, 63); 
-	formatex(g_Maps_Ini_File, 63, "%s/war/maps.ini", g_Maps_Ini_File);
-
-	server_cmd("exec %s", cvarscfg);
 }
 
 
-//Reset Block
-public reset_block(id)
-{
-	if(get_pcvar_num(cvar_noreset) == 1 && g_MatchStarted)
-	{
-		client_print_color(id, 0, "You cannot reset your score during match");
-		return PLUGIN_HANDLED;
-	}
-	return PLUGIN_CONTINUE;
-}
-
-// Sound Declaration
-#if defined SOUND
-public plugin_precache()
-{
-	for(new i=0 ; i < sizeof sound_files; i++)
-    {
-        precache_generic(sound_files[i]);
-    }
-}
-
-public PlaySound(soundcode)
-{
-	switch(soundcode)
-	{
-		case 0: 
-		{
-			client_cmd(0, "mp3 play %s", sound_files[0]);
-		}
-		case 1:
-		{
-			client_cmd(0, "mp3 play %s", sound_files[1]);
-		}
-		case 2:
-		{
-			client_cmd(0, "mp3 play %s", sound_files[2]);
-		}
-		case 3:
-		{
-			client_cmd(0, "mp3 play %s", sound_files[3]);
-		}
-		case 4:
-		{
-			client_cmd(0, "mp3 play %s", sound_files[4]);
-		}
-	}
-}
-#endif
 
 //Bomb afk transfer declarations.
 public event_new_round() {
@@ -355,24 +243,38 @@ public event_new_round() {
 	g_spawn = true
 	g_planting = false
 	g_carrier = 0
+
+    if(g_MatchStarted)
+    {
+        new Players[ MAX_PLAYERS ], iNum,id;
+        get_players( Players, iNum, "h" );
+        
+        for (new i=0; i<iNum; i++) 
+        {
+            id = Players[i]
+        }
+    }
+
 }
 
-public event_got_bomb(id) {
-	g_carrier = id
-}
+public logevent_round_start_bomb() 
+{
 
-public event_bar_time(id) {
-	if (id == g_carrier) {
-		g_planting = bool:read_data(1)
-		get_user_origin(id, g_pos[id])
-		g_time[id] = 0
+	new id[32], num
+	get_players(id, num, "ae", TEAM)
+
+	if (!num) // is server empty?
+		return
+
+	g_freezetime = false
+
+	// update afk timers and current positions
+	new x
+	for (new i = 0; i < num; ++i) {
+		x = id[i]
+		get_user_origin(x, g_pos[x])
+		g_time[x] = 0
 	}
-}
-
-public event_bomb_drop() {
-	g_spawn = false
-	g_planting = false
-	g_carrier = 0
 }
 
 public task_afk_check() {
@@ -454,7 +356,6 @@ public task_afk_check() {
 	set_hudmessage(255, 255, 0, 0.42, 0.3, _, _, MSG_TIME, _, _, 3)
 	show_hudmessage(recipient, "You got the bomb!")
 }
-// AFK END
 
 //Game description forward.
 public GameDesc() 
@@ -469,22 +370,25 @@ public GameDesc()
 //Event death.
 public Event_DeathMsg_Knife()
 {
-	if(g_MatchStarted)
-	{
-		new attacker_one = read_data(1) 
-		new victim_one = read_data(2) 
+    if(g_MatchStarted)
+    {
+        new attacker_one = read_data(1) 
+        new victim_one = read_data(2) 
 
-		if(g_MatchStarted)
-		{
-			if( victim_one != attacker_one && cs_get_user_team(attacker_one) != cs_get_user_team(victim_one)) 
-			{ 
-				g_TotalKills[attacker_one]++
-				g_TotalDeaths[victim_one]++
-			}
-		}
-	}
+        if(g_MatchStarted)
+        {
+            if( victim_one != attacker_one && cs_get_user_team(attacker_one) != cs_get_user_team(victim_one)) 
+            { 
+                g_TotalKills[attacker_one]++
+                g_TotalDeaths[victim_one]++
+            }
+        }
+    }
+
 	return PLUGIN_HANDLED
+
 }
+
 
 public bomb_planted( id )
 {
@@ -494,13 +398,17 @@ public bomb_planted( id )
 	}
 }
 
+
+
 public bomb_defused( id )
 {
+
 	if ( g_MatchStarted )
 	{
 		g_BombDefusions[id]++
     }
 }
+
 
 public GetMatchMenu(id)
 {  
@@ -539,16 +447,17 @@ public RestartMatch(id,lvl,cid)
         new MatchRestarterAuthID[128] 
         get_user_authid(id, MatchRestarterAuthID, 127)
 
+        log_amx("Admin %s with ID = %i and AuthID %s has restarted the Match !",MatchRestarterName,id,MatchRestarterAuthID)
+
         server_cmd("mp_freezetime 999");
 
         set_dhudmessage(0, 255, 0, -1.0, -1.0, 0, 2.0, 6.0, 0.8, 0.8)
         show_dhudmessage(0,"Admin has restarted the Match ! ^n Captains will be chosen shortly..")
 
-        log_to_file(WARLOG_FILE, "|Restart Match| [%s] %s has restarted the Match", MatchRestarterName, MatchRestarterAuthID)
-
         set_task(8.0,"RestartMatchTask",id)
 
         return PLUGIN_HANDLED
+
     } 
     return PLUGIN_HANDLED
 }
@@ -563,6 +472,7 @@ public RestartMatchTask(id)
 //Stop the Match.
 public StopMatch(id,lvl, cid)
 {
+
     if(!cmd_access(id, lvl, cid, 0))
 		return PLUGIN_HANDLED;
 
@@ -576,16 +486,17 @@ public StopMatch(id,lvl, cid)
         new MatchStopperAuthID[128] 
         get_user_authid(id, MatchStopperAuthID, 128)
 
+        log_amx("Admin %s with AuthID %s has stopped the Match !",MatchStopperName,MatchStopperAuthID)
+
         server_cmd("mp_freezetime 999");
 
         set_dhudmessage(0, 255, 0, -1.0, -1.0, 0, 2.0, 6.0, 0.8, 0.8)
         show_dhudmessage(0,"Admin has Stopped the Match ! ^n Server will restart now.")
 
-        log_to_file(WARLOG_FILE, "|Stopped Match| [%s] %s has Stopped the Match", MatchStopperName,MatchStopperAuthID)
-
         set_task(8.0,"RestartServerForStoppingMatch")
 
         return PLUGIN_HANDLED
+
     } 
     return PLUGIN_HANDLED
 }
@@ -594,14 +505,18 @@ public StopMatch(id,lvl, cid)
 //Stop match special when owner is not there.
 public StopMatchSpecial()
 {
+
     if(g_MatchInit || g_MatchStarted || g_KnifeRound)
     {
+        
+
         server_cmd("mp_freezetime 999");
 
         set_dhudmessage(0, 255, 0, -1.0, -1.0, 0, 2.0, 6.0, 0.8, 0.8)
         show_dhudmessage(0,"Match Lord has Left the Game ! ^n Server will restart now.")
 
         set_task(4.0,"RestartServerForStoppingMatch")
+
     } 
     return PLUGIN_HANDLED
 }
@@ -632,9 +547,11 @@ public GoToTheSpec(id)
 //Terrorist Win event.
 public on_TerroristWin()
 {
+
     //Terrorrist Knife round winner.
     if(g_KnifeRound == true)
     {
+        
         // T WOWN.
         ShowMenuFirst = gCptT
         ShowMenuSecond = gCptCT
@@ -642,6 +559,8 @@ public on_TerroristWin()
         //Set Names of the Captain. because captain may leave the game.
         get_user_name(ShowMenuFirst, FirstCaptainName, charsmax(FirstCaptainName)) 
         get_user_name(ShowMenuSecond, SecondCaptainName, charsmax(SecondCaptainName))
+
+        
 
         set_task( 3.0, "GiveRestartRound", _, _, _, "a", 1 ); 
 
@@ -653,6 +572,7 @@ public on_TerroristWin()
 
     if(g_MatchStarted)
     {
+
         if(isFirstHalfStarted)
         {
             if(FirstCaptainTeamName == 1)
@@ -771,30 +691,32 @@ public on_TerroristWin()
 //CT WIN Event.
 public on_CTWin()
 {
-	if(g_KnifeRound)
-	{
-			// CT WON.
-			ShowMenuFirst = gCptCT
-			ShowMenuSecond = gCptT
 
-			//Set Names of the Captain. because captain may leave the game.
- 			get_user_name(ShowMenuFirst, FirstCaptainName, charsmax(FirstCaptainName)) 
-			get_user_name(ShowMenuSecond, SecondCaptainName, charsmax(SecondCaptainName)) 
+    if(g_KnifeRound)
+    {
+        	
+            // CT WON.
+            ShowMenuFirst = gCptCT
+            ShowMenuSecond = gCptT
 
-			get_user_authid(ShowMenuFirst, FirstCaptainAuthID, 127)
-			get_user_authid(ShowMenuSecond, SecondCaptainAuthID, 127)
+             //Set Names of the Captain. because captain may leave the game.
+            get_user_name(ShowMenuFirst, FirstCaptainName, charsmax(FirstCaptainName)) 
+            get_user_name(ShowMenuSecond, SecondCaptainName, charsmax(SecondCaptainName)) 
 
-			g_KnifeRound = false
+            get_user_authid(ShowMenuFirst, FirstCaptainAuthID, 127)
+            get_user_authid(ShowMenuSecond, SecondCaptainAuthID, 127)
+
+             g_KnifeRound = false
         
 
-			set_task( 3.0, "GiveRestartRound", _, _, _, "a", 1 ); 
+            set_task( 3.0, "GiveRestartRound", _, _, _, "a", 1 ); 
 
-			set_task(2.0,"SecondCaptWonKnifeRoundWonMessage",gCptCT)
+            set_task(2.0,"SecondCaptWonKnifeRoundWonMessage",gCptCT)
             
-			LoadMatchSettings()
-	}
-
-	if(g_MatchStarted)
+            LoadMatchSettings()
+    }
+    
+    if(g_MatchStarted)
     {
         if(isFirstHalfStarted)
         {
@@ -909,6 +831,7 @@ public on_CTWin()
 
                 set_cvar_string("amx_warname",GameDescBuffer)
             }
+
         }
     }
 }
@@ -924,35 +847,18 @@ public logevent_round_start()
         set_dhudmessage(255, 255, 255, -1.0, -1.0, 0, 2.0, 6.0, 0.8, 0.8)
         show_dhudmessage(0,"-= Knife Round Begins =- ^n Captain: %s ^n Vs. ^n Captain: %s",TempFirstCaptain,TempSecondCaptain)  
 
-        client_print_color(0, print_team_default, "^3%s ^4 ^3Knife Round ^1has ^4been started ! ", prefix)
-        client_print_color(0, print_team_default, "^3%s ^4 Knife War: ^1Captain- ^3 %s ^4Vs. ^1Captain- ^3%s", prefix, TempFirstCaptain,TempSecondCaptain)
-        client_print_color(0, print_team_default, "^3%s ^4 Knife War: ^1Captain- ^3 %s ^4Vs. ^1Captain- ^3%s", prefix, TempFirstCaptain,TempSecondCaptain)
-     	
-     	log_to_file(WARLOG_FILE, "|Knife WAR| [%s] Vs. [%s]", TempFirstCaptain,TempSecondCaptain);
+        ColorChat(0,"!t[ECS WAR] !g !tKnife Round !yhas !gbeen started ! ")
+        ColorChat(0,"!t[ECS WAR] !g Knife War: !yCaptain- !t %s !gVs. !yCaptain- !t%s",TempFirstCaptain,TempSecondCaptain)
+        ColorChat(0,"!t[ECS WAR] !g Knife War: !yCaptain- !t %s !gVs. !yCaptain- !t%s",TempFirstCaptain,TempSecondCaptain)
+     
     }
     
-	if(g_MatchStarted)
-	{
+    if(g_MatchStarted)
+    {
         //Show Score info in Hud on every round start.
-		ShowScoreHud()
-		set_task(3.0,"ShowScoreOnRoundStart")
-	}
-
-	new id[32], num
-	get_players(id, num, "ae", TEAM)
-
-	if (!num) // is server empty?
-		return
-
-	g_freezetime = false
-
-	// update afk timers and current positions
-	new x
-	for (new i = 0; i < num; ++i) {
-		x = id[i]
-		get_user_origin(x, g_pos[x])
-		g_time[x] = 0
-	}
+        ShowScoreHud()
+        set_task(3.0,"ShowScoreOnRoundStart")
+    }
 }
 
 //When Client join the server and if match is initialized or Knife round is running transfer player to spec.
@@ -998,15 +904,15 @@ public ShowMenuSpecial(id)
 
 
     // TASK 1 - To Move All the players in Spec.
-	cmdTransferAllInSpec();
+    cmdTransferAllInSpec();
 
     //Send message to players about message.
-	MatchInitHudMessage()
+    MatchInitHudMessage()
 
 
     //Task 2 - Show Players Menu to who started the match.
-	set_task(5.0, "ShowMenuPlayers", id)
-
+    set_task(5.0, "ShowMenuPlayers", id)
+    
 
 	return PLUGIN_HANDLED;
 }
@@ -1019,39 +925,35 @@ public ShowMenu(id, lvl, cid)
 	if(!cmd_access(id, lvl, cid, 0))
 		return PLUGIN_HANDLED;
 
-	if(g_MatchInit || g_MatchStarted)
-	return PLUGIN_HANDLED
+    if(g_MatchInit || g_MatchStarted)
+    return PLUGIN_HANDLED
 
 
-	MatchStarterOwner = id
+    MatchStarterOwner = id
 
     //Match initialized. 
-	set_cvar_string("amx_warname","Initialized!")
+    set_cvar_string("amx_warname","[ECS-WAR] Initialized!")
 
     //Log AMX, Who stopped the match!.
-	new MatchStarterName[32] 
-	get_user_name(id, MatchStarterName, charsmax(MatchStarterName)) 
+    new MatchStarterName[32] 
+    get_user_name(id, MatchStarterName, charsmax(MatchStarterName)) 
 
-	new MatchStarterAuthID[128] 
-	get_user_authid(id, MatchStarterAuthID, 127)
+    new MatchStarterAuthID[128] 
+    get_user_authid(id, MatchStarterAuthID, 127)
 
     // Match has been initialized! 
-	g_MatchInit = true
+    g_MatchInit = true
 
     // TASK 1 - To Move All the players in Spec.
-	cmdTransferAllInSpec();
+    cmdTransferAllInSpec();
 
     //Send message to players about message.
-	MatchInitHudMessage()
+    MatchInitHudMessage()
 
-	log_to_file(WARLOG_FILE, "|Started Match| [%s] %s has Started the Match", MatchStarterName, MatchStarterAuthID);
 
     //Task 2 - Show Players Menu to who started the match.
-	set_task(3.0, "ShowMenuPlayers", id)
-
-	#if defined SOUND
-	PlaySound(0);
-	#endif
+    set_task(3.0, "ShowMenuPlayers", id)
+    
 
 	return PLUGIN_HANDLED;
 }
@@ -1059,26 +961,26 @@ public ShowMenu(id, lvl, cid)
 //Show HUD Message and Print message to inform player about match started !
 public MatchInitHudMessage()
 {
-	set_dhudmessage(0, 255, 0, -1.0, -1.0, 0, 2.0, 6.0, 0.8, 0.8)
+    set_dhudmessage(0, 255, 0, -1.0, -1.0, 0, 2.0, 6.0, 0.8, 0.8)
 	show_dhudmessage(0,"The Match has been Initialized ! ^n Captains will be chosen by the Match Lord.")
 
-	client_print_color(0, print_team_default, "^3%s ^4 The Match has been ^3Initialized.", prefix)
-	client_print_color(0, print_team_default, "^3%s ^4 The Match has been ^3Initialized.", prefix)
-	client_print_color(0, print_team_default, "^3%s ^4 Captains will be ^3chosen.", prefix)
+    ColorChat(0,"!t[ECS WAR] !g The Match has been !tInitialized.")
+    ColorChat(0,"!t[ECS WAR] !g The Match has been !tInitialized.")
+    ColorChat(0,"!t[ECS WAR] !g Captains will be !tchosen.")
 }
 
 public ShowMenuPlayers(id)
 {
     set_cvar_string("amx_warname","Captain Selection!")
 
-    new iMenu = MakePlayerMenu("Choose a Captain", "PlayersMenuHandler");
+    new iMenu = MakePlayerMenu( id, "Choose a Captain", "PlayersMenuHandler" );
     menu_setprop( iMenu, MPROP_NUMBER_COLOR, "\y" );
     menu_display( id, iMenu );
 
     return PLUGIN_CONTINUE;
 }
 
-MakePlayerMenu(const szMenuTitle[], const szMenuHandler[] )
+MakePlayerMenu( id, const szMenuTitle[], const szMenuHandler[] )
 {
     new iMenu = menu_create( szMenuTitle, szMenuHandler );
     new iPlayers[32], iNum, iPlayer, szPlayerName[32], szUserId[33];
@@ -1102,7 +1004,7 @@ MakePlayerMenu(const szMenuTitle[], const szMenuHandler[] )
             menu_additem( iMenu, PlayerWithPoints, szUserId, 0 );
 
         }
-
+        
         
     }
 
@@ -1115,97 +1017,90 @@ public PlayersMenuHandler( id, iMenu, iItem )
     if ( iItem == MENU_EXIT )
     {
         // Recreate menu because user's team has been changed.
-        new iMenu = MakePlayerMenu("Choose a Captain", "PlayersMenuHandler" );
+        new iMenu = MakePlayerMenu( id, "Choose a Captain", "PlayersMenuHandler" );
         menu_setprop( iMenu, MPROP_NUMBER_COLOR, "\y" );
         menu_display( id, iMenu );
 
-		return PLUGIN_HANDLED;
-	}
+        return PLUGIN_HANDLED;
+    }
 
-	new szUserId[32], szPlayerName[32], iPlayer, iCallback;
+    new szUserId[32], szPlayerName[32], iPlayer, iCallback;
 
-	menu_item_getinfo( iMenu, iItem, iCallback, szUserId, charsmax( szUserId ), szPlayerName, charsmax( szPlayerName ), iCallback );
+    menu_item_getinfo( iMenu, iItem, iCallback, szUserId, charsmax( szUserId ), szPlayerName, charsmax( szPlayerName ), iCallback );
 
-	if ( ( iPlayer = find_player( "k", str_to_num( szUserId ) ) )  )
-	{
+    if ( ( iPlayer = find_player( "k", str_to_num( szUserId ) ) )  )
+    {
+      
+        if(CaptainCount == 0)
+        {
+            
+            //cs_set_user_team(iPlayer, CS_TEAM_CT)
+            rg_set_user_team(iPlayer,TEAM_CT,MODEL_AUTO,true)
 
-		if(CaptainCount == 0)
-		{
+            new ChosenCaptain[32] 
+            get_user_name(iPlayer, ChosenCaptain, charsmax(ChosenCaptain)) 
+            ColorChat(0,"!t[ECS WAR] !gPlayer  !t%s chosen !yas  First !tCaptain! ", ChosenCaptain)  
 
-            #if defined USE_REAPI
-			rg_set_user_team(iPlayer,TEAM_CT,MODEL_AUTO,true)
-			#else
-			cs_set_user_team(iPlayer, CS_TEAM_CT)
-			#endif
-
-			new ChosenCaptain[32] 
-			get_user_name(iPlayer, ChosenCaptain, charsmax(ChosenCaptain)) 
-			client_print_color(0, print_team_default, "^3%s ^4Player  ^3%s selected ^1as  First ^3Captain! ", prefix, ChosenCaptain) 
-			log_to_file(WARLOG_FILE, "|1st Captain| [ %s ]", ChosenCaptain) 
-
-			CaptainCount++  
+            CaptainCount++  
 
             //Temp captain name.
-			get_user_name(iPlayer, TempFirstCaptain, charsmax(TempFirstCaptain)) 
-
+            get_user_name(iPlayer, TempFirstCaptain, charsmax(TempFirstCaptain)) 
+          
             //Assign CT Captain
-			gCptCT = iPlayer
+            gCptCT = iPlayer
 
             //Recreate menu.
-			menu_destroy(iMenu)
-			new iMenu = MakePlayerMenu("Choose a Captain", "PlayersMenuHandler" );
-			menu_setprop( iMenu, MPROP_NUMBER_COLOR, "\y" );
- 			menu_display( id, iMenu );
+            menu_destroy(iMenu)
+            new iMenu = MakePlayerMenu( id, "Choose a Captain", "PlayersMenuHandler" );
+            menu_setprop( iMenu, MPROP_NUMBER_COLOR, "\y" );
+            menu_display( id, iMenu );
 
-			return PLUGIN_HANDLED;
+            return PLUGIN_HANDLED;
 
-		}
+        }
 
-		if(CaptainCount == 1)
-		{
+        if(CaptainCount == 1)
+        {
+            
+            //cs_set_user_team(iPlayer, CS_TEAM_T)
+            rg_set_user_team(iPlayer,TEAM_TERRORIST,MODEL_AUTO,true)
 
-            #if defined USE_REAPI
-			rg_set_user_team(iPlayer,TEAM_TERRORIST,MODEL_AUTO,true)
-			#else
-			cs_set_user_team(iPlayer, CS_TEAM_T)
-			#endif
 
-			new ChosenCaptain[32] 
-			get_user_name(iPlayer, ChosenCaptain, charsmax(ChosenCaptain)) 
-			client_print_color(0, print_team_default, "^3%s ^4Player  ^3%s selected ^1as Second ^3Captain! ", prefix, ChosenCaptain)
-			log_to_file(WARLOG_FILE, "|2nd Captain| [ %s ]", ChosenCaptain)
+            new ChosenCaptain[32] 
+            get_user_name(iPlayer, ChosenCaptain, charsmax(ChosenCaptain)) 
+            ColorChat(0,"!t[ECS WAR] !gPlayer  !t%s chosen !yas Second !tCaptain! ", ChosenCaptain)
 
-			CaptainCount++
+            CaptainCount++
 
 
              //Temp captain name.
-			get_user_name(iPlayer, TempSecondCaptain, charsmax(TempSecondCaptain)) 
+            get_user_name(iPlayer, TempSecondCaptain, charsmax(TempSecondCaptain)) 
 
             //Assign T Captain
-			gCptT = iPlayer
+            gCptT = iPlayer
 
             //Set it to true because captains have been chosen.
-			CaptainSChosen = true
+            CaptainSChosen = true
 
             //Announcement.
-			set_dhudmessage(255, 0, 0, -1.0, -1.0, 0, 2.0, 6.0, 0.8, 0.8)
-			show_dhudmessage(0,"Get Ready Captains! ^n The Knife Round will Start in 10 seconds....")
-			client_print_color(0, print_team_default, "^3%s ^4Attention ! ^1The ^3Knife Round ^4Will Start in 10 seconds!", prefix)
+            set_dhudmessage(255, 0, 0, -1.0, -1.0, 0, 2.0, 6.0, 0.8, 0.8)
+	        show_dhudmessage(0,"Get Ready Captains! ^n The Knife Round will Start in 10 seconds....")
+            ColorChat(0,"!t[ECS WAR] !gAttention ! !yThe !tKnife Round !gWill Start in 10 seconds!")
 
             //Start knife round.
-			set_task(10.0,"Knife_Round")
+            set_task(10.0,"Knife_Round")
 
             //Captain choosing is over so destroy menu.
-			menu_destroy(iMenu)
-			return PLUGIN_HANDLED;
+            menu_destroy(iMenu)
+            return PLUGIN_HANDLED;
         }
         
     }
     
     // Recreate menu because user's team has been changed.
-	new iMenu = MakePlayerMenu("Choose a Captain", "PlayersMenuHandler" );
-	menu_setprop( iMenu, MPROP_NUMBER_COLOR, "\y" );
-	menu_display( id, iMenu );
+    new iMenu = MakePlayerMenu( id, "Choose a Captain", "PlayersMenuHandler" );
+    menu_setprop( iMenu, MPROP_NUMBER_COLOR, "\y" );
+    menu_display( id, iMenu );
 
     return PLUGIN_HANDLED;
 }
@@ -1229,10 +1124,10 @@ public SetKnifeRoundTrue()
 public round_end()
 {
 
-	new Players[ MAX_PLAYERS ], iNum;
+    new Players[ MAX_PLAYERS ], iNum,id;
 	get_players( Players, iNum, "h" );
 
-	if(g_MatchStarted)
+    if(g_MatchStarted)
     {
        //Increment rounds.
         RoundCounter++
@@ -1258,8 +1153,8 @@ public round_end()
                     player = players[i]
                     if(is_user_connected(player))
                     {
-						Frags[player] = get_user_frags(player)
-						Deaths[player] = cs_get_user_deaths(player)
+                        Frags[player] = get_user_frags(player)
+				        Deaths[player] = cs_get_user_deaths(player)
                     }
 
                 }
@@ -1283,8 +1178,8 @@ public round_end()
                     player = players[i]
                     if(is_user_connected(player))
                     {
-						Frags[player] = get_user_frags(player)
-						Deaths[player] = cs_get_user_deaths(player)
+                        Frags[player] = get_user_frags(player)
+				        Deaths[player] = cs_get_user_deaths(player)
                     }
 
                 }
@@ -1302,18 +1197,18 @@ public round_end()
 //Choose the team.
 public ChooseTeam(id)
 {
-	set_cvar_string("amx_warname","Captain Team Selection")
+    set_cvar_string("amx_warname","Captain Team Selection")
 
-	set_dhudmessage(255, 255, 255, -1.0, -1.0, 0, 2.0, 6.0, 0.8, 0.8)
+    set_dhudmessage(255, 255, 255, -1.0, -1.0, 0, 2.0, 6.0, 0.8, 0.8)
 	show_dhudmessage(0,"Captain %s will Choose Team and Players First !",FirstCaptainName)
     
-	new TeamChooser = MakeTeamSelectorMenu("Please Choose the Team.", "TeamHandler" );
-	menu_setprop( TeamChooser, MPROP_NUMBER_COLOR, "\y" );
-	menu_display( id, TeamChooser );
+    new TeamChooser = MakeTeamSelectorMenu( id, "Please Choose the Team.", "TeamHandler" );
+    menu_setprop( TeamChooser, MPROP_NUMBER_COLOR, "\y" );
+    menu_display( id, TeamChooser );
 
 }
 
-MakeTeamSelectorMenu(const szMenuTitle[], const szMenuHandler[])
+MakeTeamSelectorMenu( id, const szMenuTitle[], const szMenuHandler[])
 {
      new TeamChooser = menu_create( szMenuTitle, szMenuHandler );
      menu_additem( TeamChooser, "Counter-Terrorist" );
@@ -1327,7 +1222,7 @@ public TeamHandler(id, TeamChooser, iItem )
     if ( iItem == MENU_EXIT )
     {
         // Recreate menu because user's team has been changed.
-        new TeamChooser = MakeTeamSelectorMenu("Please Choose the Team.", "TeamHandler" );
+        new TeamChooser = MakeTeamSelectorMenu( id, "Please Choose the Team.", "TeamHandler" );
         menu_setprop( TeamChooser, MPROP_NUMBER_COLOR, "\y" );
         menu_display( id, TeamChooser );
 
@@ -1340,7 +1235,7 @@ public TeamHandler(id, TeamChooser, iItem )
         //Chosen CT.
         case 0:
         {
-            client_print_color(0, print_team_default, "^3%s ^4Captain ^3%s ^1chosen Team- ^4Counter-Terrorist", prefix, FirstCaptainName)
+            ColorChat(0,"!t[ECS WAR] !gCaptain !t%s !ychosen Team- !gCounter-Terrorist",FirstCaptainName)
 
            
             FirstCaptainTeamName = 2
@@ -1364,7 +1259,7 @@ public TeamHandler(id, TeamChooser, iItem )
             FirstCaptainTeamName = 1
             SecondCaptainTeamName = 2
 
-            client_print_color(0, print_team_default, "^3%s ^4Captain ^3%s ^1chosen Team- ^4Terrorist", prefix, FirstCaptainName)
+            ColorChat(0,"!t[ECS WAR] !gCaptain !t%s !ychosen Team- !gTerrorist",FirstCaptainName)
 
             if(get_user_team(id) != 1)
             {
@@ -1384,40 +1279,38 @@ public TeamHandler(id, TeamChooser, iItem )
 // MENU TO CHOOSE PLAYERS !!!
 public LetsFirstChoosePlayers(id)
 {
-	#if defined SOUND
-	PlaySound(1);
-	#endif
+     
 
-	new players[32], count;     
-	get_players(players, count,"eh","SPECTATOR"); 
+    new players[32], count;     
+    get_players(players, count,"eh","SPECTATOR"); 
 
-	if(count > 0)
-	{
-		new iChoosePlayers = LetsFirstChoosePlayersMenu("Choose A player.", "LetsFirstChoosePlayersHandler" );
-		menu_setprop( iChoosePlayers, MPROP_NUMBER_COLOR, "\y" );
-		menu_display( id, iChoosePlayers );
-        
-		return PLUGIN_HANDLED;
-	}
-	else
+    if(count > 0)
     {
+        new iChoosePlayers = LetsFirstChoosePlayersMenu( id, "Choose A player.", "LetsFirstChoosePlayersHandler" );
+        menu_setprop( iChoosePlayers, MPROP_NUMBER_COLOR, "\y" );
+        menu_display( id, iChoosePlayers );
+        
+        return PLUGIN_HANDLED;
+    }
+    else
+    {
+     
+        set_cvar_string("amx_warname","Teams Are Set!")
 
-		set_cvar_string("amx_warname","Teams Are Set!")
+        set_dhudmessage(0,255, 0, -1.0, -1.0, 0, 2.0, 6.0, 0.8, 0.8)
+	    show_dhudmessage(0,"Teams are SET ! ^n ^n First Half will start Now.......")
 
-		set_dhudmessage(0,255, 0, -1.0, -1.0, 0, 2.0, 6.0, 0.8, 0.8)
-		show_dhudmessage(0,"Teams are SET ! ^n ^n First Half will start Now.......")
+        set_task(2.0, "GiveRestartRound"); 
 
-		set_task(2.0, "GiveRestartRound"); 
+        set_task(4.0,"LiveOnThreeRestart");
 
-		set_task(4.0,"LiveOnThreeRestart");
+        set_task(8.0,"StartMatch")
 
-		set_task(8.0,"StartMatch")
-
-		return PLUGIN_HANDLED;
+        return PLUGIN_HANDLED;
     }
 }
 
-LetsFirstChoosePlayersMenu(const szMenuTitle[], const szMenuHandler[])
+LetsFirstChoosePlayersMenu(id, const szMenuTitle[], const szMenuHandler[])
 {
 
 
@@ -1452,7 +1345,7 @@ public LetsFirstChoosePlayersHandler( id, iChoosePlayers, iItem )
 {
     if ( iItem == MENU_EXIT )
     {
-        new iChoosePlayers = LetsFirstChoosePlayersMenu("Choose A player.", "LetsFirstChoosePlayersHandler" );
+        new iChoosePlayers = LetsFirstChoosePlayersMenu( id, "Choose A player.", "LetsFirstChoosePlayersHandler" );
         menu_setprop( iChoosePlayers, MPROP_NUMBER_COLOR, "\y" );
         menu_display( id, iChoosePlayers );
         
@@ -1470,52 +1363,45 @@ public LetsFirstChoosePlayersHandler( id, iChoosePlayers, iItem )
         get_user_name(iPlayer, ChoosenPlayer, charsmax(ChoosenPlayer)) 
      
 
-        client_print_color(0, print_team_default, "^3%s ^4Captain ^3%s ^4selected ^1Player ^4%s ", prefix, FirstCaptainName,ChoosenPlayer);
+        ColorChat(0,"!t[ECS WAR] !gCaptain !t%s !gchose !yPlayer !g%s ",FirstCaptainName,ChoosenPlayer);
 
         
 
-		if(!is_user_connected(iPlayer))
-		{
-			new iChoosePlayers = LetsFirstChoosePlayersMenu("Choose A player.", "LetsFirstChoosePlayersHandler" );
-			menu_setprop( iChoosePlayers, MPROP_NUMBER_COLOR, "\y" );
-			menu_display( id, iChoosePlayers );
+        if(!is_user_connected(iPlayer))
+        {
+            new iChoosePlayers = LetsFirstChoosePlayersMenu( id, "Choose A player.", "LetsFirstChoosePlayersHandler" );
+            menu_setprop( iChoosePlayers, MPROP_NUMBER_COLOR, "\y" );
+            menu_display( id, iChoosePlayers );
             
-			return PLUGIN_HANDLED;
-		}
-		else
-		{
-			CaptainChoosenID = id
-			WhoChoseThePlayer = 1
+            return PLUGIN_HANDLED;
+        }
+        else
+        {
+            CaptainChoosenID = id
+            WhoChoseThePlayer = 1
             //cs_set_user_team(iPlayer, cs_get_user_team(id))
+            
+            new CsTeams:team = cs_get_user_team(id)
 
-			new CsTeams:team = cs_get_user_team(id)
-
-			if(team == CS_TEAM_CT)
-			{
+            if(team == CS_TEAM_CT)
+            {
                 //transfer player to ct.
-                #if defined USE_REAPI
-				rg_set_user_team(iPlayer,TEAM_CT,MODEL_AUTO,true)
-				#else
-				cs_set_user_team(iPlayer, CS_TEAM_CT)
-				#endif
-			}
+                rg_set_user_team(iPlayer,TEAM_CT,MODEL_AUTO,true)
+            }
 
-			if(team == CS_TEAM_T)
-			{
+            if(team == CS_TEAM_T)
+            {
                 //transfer player to Terrorist.
-                #if defined USE_REAPI
-				rg_set_user_team(iPlayer,TEAM_TERRORIST,MODEL_AUTO,true)
-				#else
-				cs_set_user_team(iPlayer, CS_TEAM_T)
-				#endif
-			}
+                rg_set_user_team(iPlayer,TEAM_TERRORIST,MODEL_AUTO,true)
+            }
 
+            
+            LetsSecondChoosePlayers(ShowMenuSecond)
+            return PLUGIN_HANDLED;
+        }
+    }
+return PLUGIN_HANDLED;
 
-			LetsSecondChoosePlayers(ShowMenuSecond)
-			return PLUGIN_HANDLED;
-		}
-	}
-	return PLUGIN_HANDLED;
 }
 
 
@@ -1530,7 +1416,7 @@ public LetsSecondChoosePlayers(id)
 
     if(count > 0)
     {
-        new iChoosePlayers = LetsSecondChoosePlayersMenu("Choose A player.", "LetsSecondChoosePlayersHandler" );
+        new iChoosePlayers = LetsSecondChoosePlayersMenu( id, "Choose A player.", "LetsSecondChoosePlayersHandler" );
         menu_setprop( iChoosePlayers, MPROP_NUMBER_COLOR, "\y" );
         menu_display( id, iChoosePlayers );
 
@@ -1540,21 +1426,21 @@ public LetsSecondChoosePlayers(id)
     {
         //TEAMS ARE SET BECAUSE NO PLAYERS IN SPEC!
 
-		set_dhudmessage(0, 255, 0, -1.0, -1.0, 0, 2.0, 6.0, 0.8, 0.8)
-		show_dhudmessage(0,"Teams are SET ! ^n ^n First Half will start Now.......")
+        set_dhudmessage(0, 255, 0, -1.0, -1.0, 0, 2.0, 6.0, 0.8, 0.8)
+	    show_dhudmessage(0,"Teams are SET ! ^n ^n First Half will start Now.......")
         
-		set_task(2.0, "GiveRestartRound"); 
+        set_task(2.0, "GiveRestartRound"); 
 
-		set_task(4.0,"LiveOnThreeRestart");
+        set_task(4.0,"LiveOnThreeRestart");
 
-		set_task(8.0,"StartMatch")
+        set_task(8.0,"StartMatch")
 
-		return PLUGIN_HANDLED;
+        return PLUGIN_HANDLED;
     }
     
 }
 
-LetsSecondChoosePlayersMenu(const szMenuTitle[], const szMenuHandler[])
+LetsSecondChoosePlayersMenu(id, const szMenuTitle[], const szMenuHandler[])
 {
     new iChoosePlayers = menu_create( szMenuTitle, szMenuHandler );
     new iPlayers[32], iNum, iPlayer, szPlayerName[32], szUserId[32];
@@ -1588,7 +1474,7 @@ public LetsSecondChoosePlayersHandler( id, iChoosePlayers, iItem )
 {
     if ( iItem == MENU_EXIT )
     {
-        new iChoosePlayers = LetsSecondChoosePlayersMenu("Choose A player.", "LetsSecondChoosePlayersHandler" );
+        new iChoosePlayers = LetsSecondChoosePlayersMenu( id, "Choose A player.", "LetsSecondChoosePlayersHandler" );
         menu_setprop( iChoosePlayers, MPROP_NUMBER_COLOR, "\y" );
         menu_display( id, iChoosePlayers ); 
         return PLUGIN_HANDLED;
@@ -1605,11 +1491,11 @@ public LetsSecondChoosePlayersHandler( id, iChoosePlayers, iItem )
         get_user_name(iPlayer, ChoosenPlayer, charsmax(ChoosenPlayer)) 
      
 
-        client_print_color(0, print_team_default, "^3%s ^4Captain ^3%s ^4selected ^1Player ^4%s", prefix, SecondCaptainName,ChoosenPlayer);
+        ColorChat(0,"!t[ECS WAR] !gCaptain !t%s !gchose !yPlayer !g%s",SecondCaptainName,ChoosenPlayer);
 
         if(!is_user_connected(iPlayer))
         {
-            new iChoosePlayers = LetsSecondChoosePlayersMenu("Choose A player.", "LetsSecondChoosePlayersHandler" );
+            new iChoosePlayers = LetsSecondChoosePlayersMenu( id, "Choose A player.", "LetsSecondChoosePlayersHandler" );
             menu_setprop( iChoosePlayers, MPROP_NUMBER_COLOR, "\y" );
             menu_display( id, iChoosePlayers ); 
             return PLUGIN_HANDLED;
@@ -1625,21 +1511,13 @@ public LetsSecondChoosePlayersHandler( id, iChoosePlayers, iItem )
             if(team == CS_TEAM_CT)
             {
                 //transfer player to ct.
-                #if defined USE_REAPI
                 rg_set_user_team(iPlayer,TEAM_CT,MODEL_AUTO,true)
-                #else
-                cs_set_user_team(iPlayer, CS_TEAM_CT)
-                #endif
             }
 
             if(team == CS_TEAM_T)
             {
                 //transfer player to Terrorist.
-                #if defined USE_REAPI
                 rg_set_user_team(iPlayer,TEAM_TERRORIST,MODEL_AUTO,true)
-                #else
-                cs_set_user_team(iPlayer, CS_TEAM_T)
-                #endif
             }
 
             
@@ -1691,14 +1569,14 @@ public client_disconnected(id)
 
 public DoRanking()
 {
-	new KillerName[256], DeathsName[256], BombPName[256], BombDName[256]
+    new KillerName[256], DeathsName[256], BombPName[256], BombDName[256]
 	new players[32], pnum, tempid
 	new topKillerID, topDeathsID, topBombPID, topBombDID
 	new topKills, topDeaths, topBombP, topBombD
 
 	get_players(players, pnum)
 
-	for ( new i ; i < pnum ; i++ )
+    for ( new i ; i < pnum ; i++ )
 	{
 		tempid = players[i]
 		
@@ -1778,22 +1656,13 @@ public DoRanking()
 	}
 	
 
-	msgToDisplay = "Match Player Rankings^n-----------------------------^n^nTop Kills - %s [%d Kills]^nTop Deaths - %s [%d Deaths]^nTop Bomb Plants - %s [%d Bomb Plants]^nTop Bomb Defusions - %s [%d Bomb Defusions]^n%s Total Leavers - %d"
+    msgToDisplay = "Match Player Rankings^n-----------------------------^n^nTop Kills - %s [%d Kills]^nTop Deaths - %s [%d Deaths]^nTop Bomb Plants - %s [%d Bomb Plants]^nTop Bomb Defusions - %s [%d Bomb Defusions]^nECS-WAR Total Leavers - %d"
 	format(msgToDisplay, charsmax(msgToDisplay), msgToDisplay, strlen(KillerName) ? KillerName : "NONE", topKills, strlen(DeathsName) ? DeathsName : "NONE", topDeaths,
-			strlen(BombPName) ? BombPName : "NONE", topBombP, strlen(BombDName) ? BombDName : "NONE", topBombD, prefix, g_TotalLeaves)
+			strlen(BombPName) ? BombPName : "NONE", topBombP, strlen(BombDName) ? BombDName : "NONE", topBombD, g_TotalLeaves)
 			
-	new taskId = 6969        
+    new taskId = 6969        
 	set_task(1.0, "displayRankingTable", taskId, msgToDisplay, strlen(msgToDisplay), "b")
 
-	#if defined SOUND
-    PlaySound(4);
-    #endif
-
-    //Take Vote Now
-    if(get_pcvar_num(cvar_automap) == 1)
-    {
-    	set_task(0.5, "StartVote")
-    }
 }
 
 public displayRankingTable(msgToDisplay[], taskId)
@@ -1813,7 +1682,7 @@ public cmdChooseTeam(id)
         
         if (cs_get_user_team(id) == CS_TEAM_SPECTATOR)
         return PLUGIN_HANDLED;
-        client_print_color(id, print_team_default, "^4%s ^3You cannot ^4choose ^3a team ^1while ^4Match ^1is ^3going on.", prefix);
+        ColorChat(id, "!g[ECS WAR] !tYou cannot !gchoose !ta team !ywhile !gMatch !yis !tgoing on.");
         return PLUGIN_HANDLED;
     }
 	
@@ -1823,12 +1692,12 @@ public cmdChooseTeam(id)
 //Checking for knife
 public Event_CurWeapon_NotKnife(id)
 {
-	if(!g_KnifeRound) 
+    if ( !g_KnifeRound ) 
 		return 
 
-	if(!user_has_weapon(id, CSW_KNIFE))
+	if( !user_has_weapon(id, CSW_KNIFE ) )
 		give_item(id, "weapon_knife") 
-		engclient_cmd(id, "weapon_knife")
+	    engclient_cmd(id, "weapon_knife")
 }
 
 
@@ -1844,11 +1713,9 @@ public cmdTeamSwap()
 	{
 		player = players[i]
 
-        #if defined USE_REAPI
+        
+        //rg_set_user_team(iPlayer,TEAM_CT,MODEL_AUTO,true)
 		rg_set_user_team(player, cs_get_user_team(player) == CS_TEAM_T ? TEAM_CT:TEAM_TERRORIST,MODEL_AUTO,true)
-		#else
-		cs_set_user_team(player, cs_get_user_team(player) == CS_TEAM_T ? CS_TEAM_CT:CS_TEAM_T)
-		#endif
 	}
 	
 	return PLUGIN_HANDLED
@@ -1859,18 +1726,16 @@ public SwapPlayer()
 
 	new players[32], num
 	get_players(players, num)
-
+	
 	new player
 	for(new i = 0; i < num; i++)
 	{
 		player = players[i]
-		if(get_user_team(player) != 3)
+        if(get_user_team(player) != 3)
         {
-        	#if defined USE_REAPI
+
             rg_set_user_team(player, cs_get_user_team(player) == CS_TEAM_T ? TEAM_CT:TEAM_TERRORIST,MODEL_AUTO,true)
-            #else
-            cs_set_user_team(player, cs_get_user_team(player) == CS_TEAM_T ? CS_TEAM_CT:CS_TEAM_T)
-            #endif
+             //cs_set_user_team(player, cs_get_user_team(player) == CS_TEAM_T ? CS_TEAM_CT:CS_TEAM_T)
         }
 	}
 	
@@ -1915,12 +1780,7 @@ public DoTransferSpec(id)
     if(is_user_connected(id))
     {
         user_kill(id)
-
-        #if defined USE_REAPI
         rg_set_user_team(id, TEAM_SPECTATOR,MODEL_AUTO,true)
-        #else
-        cs_set_user_team(id, CS_TEAM_SPECTATOR);
-        #endif
     }
     
 }
@@ -1932,7 +1792,7 @@ public StartMatch()
     server_cmd("mp_forcecamera 2")
 
 
-    set_cvar_string("amx_warname","Started!")
+    set_cvar_string("amx_warname","[ECS-WAR] Started!")
 
     set_task( 3.0, "GiveRestartRound", _, _, _, "a", 3 ); 
 
@@ -1940,21 +1800,18 @@ public StartMatch()
     
     CaptainSChosen = false
     
-    client_print_color(0, print_team_default, "^3%s ^1Please ^4Try ^1Not to ^3Leave ^4The Match!", prefix)
-    client_print_color(0, print_team_default, "^3%s ^3First Half ^4Started", prefix)
-    client_print_color(0, print_team_default, "^3%s ^4Attention ! ^1The ^3Match ^1Has Been ^4 STARTED !", prefix)
+    ColorChat(0,"!t[ECS WAR] !yPlease !gTry !yNot to !tLeave !gThe Match!")
+    ColorChat(0,"!t[ECS WAR] !tFirst Half !gStarted")
+    ColorChat(0,"!t[ECS WAR] !gAttention ! !yThe !tMatch !yHas Been !g STARTED !")
 
     new ServerName[512]
 
     //change server name
-    formatex(ServerName,charsmax(ServerName),"%s- %s VS. %s", prefix, FirstCaptainName,SecondCaptainName)
+    formatex(ServerName,charsmax(ServerName),"iGC |[ECS WAR]- %s VS. %s In Progress",FirstCaptainName,SecondCaptainName)
 
     server_cmd("hostname ^"%s^"",ServerName)
 
     ServerName[0] = 0
-
-    log_to_file(WARLOG_FILE, "|--LIVE--| [ %s ] VS [ %s ]", FirstCaptainName,SecondCaptainName);
-    log_to_file(WARLOG_FILE, "|1st Half| LIVE LIVE LIVE");
 
     set_task(11.0,"MatchStartedTrue")
 
@@ -1962,11 +1819,8 @@ public StartMatch()
     //Set the status of half to first half.
     isFirstHalfStarted = true
 
-    set_task(12.0,"FirstHalfHUDMessage");
+    set_task(12.0,"FirstHalfHUDMessage")
 
-    #if defined SOUND
-    PlaySound(2);
-    #endif
 }
 
 //Swap teams for Overtime message.
@@ -2007,11 +1861,11 @@ public SwapTeamsAndRestartMatchOT()
     //Give Restart
     set_task(4.0, "GiveRestartRound", _, _, _, "a", 3 ); 
 
-    client_print_color(0, print_team_default, "^3%s OT ^4Teams ^1Have Been ^4Swapped !", prefix);
-    client_print_color(0, print_team_default, "^3%s OT ^4Over Time ^1- ^3%i ^4Second half ^1has been ^4Started !", prefix, OTCount);
-    client_print_color(0, print_team_default, "^3%s OT ^4Over Time ^1- ^3%i ^4Second half ^1has been ^4Started !", prefix, OTCount);
+    ColorChat(0,"!t[ECS WAR OVERTIME] !gTeams !yHave Been !gSwapped !");
+    ColorChat(0,"!t[ECS WAR OVERTIME] !gOver Time !y- !t%i !gSecond half !yhas been !gStarted !",OTCount);
+    ColorChat(0,"!t[ECS WAR OVERTIME] !gOver Time !y- !t%i !gSecond half !yhas been !gStarted !",OTCount);
 
-    is_secondHalf = true
+    is_secondHalf       = true
 
     //Set first half status to zero.
     isFirstHalfStarted = false
@@ -2034,24 +1888,18 @@ public SwapTeamsAndRestartMatch()
     //Give Restart
     set_task(4.0, "GiveRestartRound", _, _, _, "a", 3 ); 
 
-    client_print_color(0, print_team_default, "^3%s ^4Teams ^1Have Been ^4Swapped !", prefix);
-    client_print_color(0, print_team_default, "^3%s ^4Second half ^1has been ^4Started !", prefix);
-
-    log_to_file(WARLOG_FILE, "|2nd Half| LIVE LIVE LIVE");
+    ColorChat(0,"!t[ECS WAR] !gTeams !yHave Been !gSwapped !");
+    ColorChat(0,"!t[ECS WAR] !gSecond half !yhas been !gStarted !");
     
-    is_secondHalf = true
+    is_secondHalf       = true
 
     //Set first half status to zero.
     isFirstHalfStarted = false
     isSecondHalfStarted = true
-
-    set_task(14.0,"SecondHalfHUDMessage");
+    set_task(14.0,"SecondHalfHUDMessage")
 
     LoadMatchSettings()
 
-    #if defined SOUND
-	PlaySound(3);
-	#endif
 }
 
 
@@ -2062,7 +1910,7 @@ public ShowScoreHud()
 
     if(ScoreFtrstTeam > ScoreScondteam)
     {
-        format(score_message, 1023, "* %s Team [ %s ] winning %i to  %i ", prefix, FirstCaptainName,ScoreFtrstTeam,ScoreScondteam)
+        format(score_message, 1023, "* [ECS-WAR] Team [ %s ] winning %i to  %i ",FirstCaptainName,ScoreFtrstTeam,ScoreScondteam)
 
         set_dhudmessage(255, 255, 0, 0.0, 0.90, 0, 2.0, 5.0, 0.8, 0.8)
         show_dhudmessage(0, score_message)
@@ -2070,7 +1918,7 @@ public ShowScoreHud()
 
     if(ScoreScondteam > ScoreFtrstTeam)
     {
-        format(score_message, 1023, "* %s Team [ %s ] winning %i To %i", prefix, SecondCaptainName,ScoreScondteam,ScoreFtrstTeam)
+        format(score_message, 1023, "* [ECS-WAR] Team [ %s ] winning %i To %i",SecondCaptainName,ScoreScondteam,ScoreFtrstTeam)
 
         set_dhudmessage(255, 255, 0, 0.0, 0.90, 0, 2.0, 5.0, 0.8, 0.8)
         show_dhudmessage(0, score_message)
@@ -2078,7 +1926,7 @@ public ShowScoreHud()
 
     if(ScoreFtrstTeam == ScoreScondteam)
     {
-        format(score_message, 1023, "* %s Both Teams Have Won %i Rounds.", prefix, ScoreScondteam)
+        format(score_message, 1023, "* [ECS-WAR] Both Teams Have Won %i Rounds.",ScoreScondteam)
 
         set_dhudmessage(255, 255, 0, 0.0, 0.90, 0, 2.0, 5.0, 0.8, 0.8)
         show_dhudmessage(0, score_message)
@@ -2200,6 +2048,8 @@ public TransferToSpec(id)
             get_user_name(id, TransferedName, charsmax(TransferedName))
 
             user_kill(id)
+            //cs_set_user_team(id, CS_TEAM_SPECTATOR)
+            //rg_set_user_team(id, TEAM_SPECTATOR,MODEL_AUTO,true)
 
             set_task(3.0,"DoTransferSpec",id)
 
@@ -2214,89 +2064,88 @@ public TransferToSpec(id)
 //Winner message. - First team won!
 public FirstTeamWonTheMatch()
 {
-	set_dhudmessage(0, 255, 0, -1.0, -1.0, 0, 2.0, 6.0, 0.8, 0.8)
+    set_dhudmessage(0, 255, 0, -1.0, -1.0, 0, 2.0, 6.0, 0.8, 0.8)
 	show_dhudmessage(0,"Team [ %s ]  Won The Match !! ^n GG WP To Team %s ..",FirstCaptainName,FirstCaptainName)
 
-	set_cvar_string("amx_warname","|| WAR About To Start! ||")
-
-	log_to_file(WARLOG_FILE, "|Winner| [ %s ] Won the Match", FirstCaptainName);
+    set_cvar_string("amx_warname","-= WAR About To Start! =-")
 }
 
 //Winner message. - Second team won!
 public SecondTeamWonTheMatch()
 {
-	set_dhudmessage(0, 255, 0, -1.0, -1.0, 0, 2.0, 6.0, 0.8, 0.8)
+    set_dhudmessage(0, 255, 0, -1.0, -1.0, 0, 2.0, 6.0, 0.8, 0.8)
 	show_dhudmessage(0,"Team [ %s ] Won The Match !! ^n GG WP To Team %s  !",SecondCaptainName,SecondCaptainName)
 
-	set_cvar_string("amx_warname","|| WAR About To Start! ||")
 
-	log_to_file(WARLOG_FILE, "|Winner| [ %s ] Won the Match", SecondCaptainName);
+    set_cvar_string("amx_warname","-= WAR About To Start! =-")
 }
 
 //Load Match settings because match has been started !
 public LoadMatchSettings()
 {
-	server_cmd("exec %s", warcfg)
-	server_cmd("sv_alltalk 0")
-	server_cmd("mp_autoteambalance 2")
-	server_cmd("mp_freezetime 8")
+
+    server_cmd("sv_alltalk 0")
+    server_cmd("mp_autoteambalance 2")
+    server_cmd("mp_freezetime 8")
 }
 
 //Load PuB settings because Match is over!
 public LoadPubSettings()
 {
 
-	set_cvar_string("amx_warname","|| WAR About To Start! ||")
+    set_cvar_string("amx_warname","-= WAR About To Start! =-")
 
-	//Set some zero.
-	CaptainChoosenID = 0
-	WhoChoseThePlayer = 0
-	g_TotalLeaves = 0
-	g_TotalKills[0] = 0
-	g_TotalDeaths[0] = 0
-	g_BombPlants[0] = 0
-	g_BombDefusions[0] = 0
-	msgToDisplay[0] = 0
-	remove_task(6969)
+    //Set some zero.
+    CaptainChoosenID = 0
+    WhoChoseThePlayer = 0
+    g_TotalLeaves = 0
+    g_TotalKills[0] = 0
+    g_TotalDeaths[0] = 0
+    g_BombPlants[0] = 0
+    g_BombDefusions[0] = 0
+    msgToDisplay[0] = 0
+    remove_task(6969)
 
-	//ALL HALF STATUS TO FALSE.
-	isFirstHalfStarted = false
-	isSecondHalfStarted = false
+    //ALL HALF STATUS TO FALSE.
+    isFirstHalfStarted = false
+    isSecondHalfStarted = false
 
-	FirstCaptainTeamName = 0
-	SecondCaptainTeamName = 0
+    FirstCaptainTeamName = 0
+    SecondCaptainTeamName = 0
 
-	MatchStarterOwner = 0
-	CaptainSChosen = false
+    MatchStarterOwner = 0
+    CaptainSChosen = false
 
-	g_KnifeRound = false
+    g_KnifeRound = false
 
-	is_secondHalf = false
-	g_MatchInit = false
-	g_MatchStarted = false
-	g_MainMatchStarted = false
-	RoundCounter = 0
+    is_secondHalf = false
+    g_MatchInit = false
+    g_MatchStarted = false
+    g_MainMatchStarted = false
+    RoundCounter = 0
 
-	gCptT = 0
-	gCptCT = 0
-	CaptainCount = 0
+    gCptT = 0
+    gCptCT = 0
+    CaptainCount = 0
 
-	ScoreFtrstTeam = 0
-	ScoreScondteam = 0
+    ScoreFtrstTeam = 0
+    ScoreScondteam = 0
+  
+    ShowMenuFirst = 0
+    ShowMenuSecond = 0
 
-	ShowMenuFirst = 0
-	ShowMenuSecond = 0
+  
+   
+    FirstCaptainName[0] = 0
+    SecondCaptainName[0] = 0
+  
+    TempFirstCaptain[0] = 0
+    TempSecondCaptain[0] = 0
 
+    server_cmd("exec server.cfg")
+    set_task( 3.0, "GiveRestartRound", _, _, _, "a", 1 ); 
+    
 
-
-	FirstCaptainName[0] = 0
-	SecondCaptainName[0] = 0
-
-	TempFirstCaptain[0] = 0
-	TempSecondCaptain[0] = 0
-
-	server_cmd("exec server.cfg")
-	set_task( 3.0, "GiveRestartRound", _, _, _, "a", 1 ); 
 }
 
 public FirstTeamWinnerMessage()
@@ -2326,20 +2175,11 @@ public SecondTeamWinnerMessage()
 public MatchDrawMessage()
 {
     set_task(3.0,"MatchIsDrawHUDMessage")
-    
-    if(get_pcvar_num(cvar_overtime) == 1)
-    {
-	    set_task(7.0,"OverTimeStartMessage")
+    set_task(7.0,"OverTimeStartMessage")
 
-	    //OT STEP 2
-	    OverTimeSettings()
-	    set_task(13.0,"SwapTeamsAndStartOverTimeFirstHalf")
-	}
-	else 
-	{
-		set_task(7.0,"DoRanking")
-		set_task(13.0,"LoadPubSettings")
-	}
+    //OT STEP 2
+    OverTimeSettings()
+    set_task(13.0,"SwapTeamsAndStartOverTimeFirstHalf")
 }
 
 // Over time Draw Message.
@@ -2375,14 +2215,14 @@ public SwapTeamsAndStartOverTimeFirstHalf()
     //Give Restart
     set_task(4.0, "GiveRestartRound", _, _, _, "a", 3 ); 
 
-    client_print_color(0, print_team_default, "^3%s OT ^4Teams ^1Have Been ^4Swapped !", prefix);
-    client_print_color(0, print_team_default, "^3%s OT ^4Over Time ^1- ^3%i ^4First Half ^1has been ^4Started !", prefix, OTCount);
-    client_print_color(0, print_team_default, "^3%s OT ^4Over Time ^1- ^3%i ^4First Half ^1has been ^4Started !", prefix, OTCount);
-    client_print_color(0, print_team_default, "^3%s OT ^4OverTime Number ^1: ^3%i", prefix, OTCount);
+    ColorChat(0,"!t[ECS WAR OVERTIME] !gTeams !yHave Been !gSwapped !");
+    ColorChat(0,"!t[ECS WAR OVERTIME] !gOver Time !y- !t%i !gFirst Half !yhas been !gStarted !",OTCount);
+    ColorChat(0,"!t[ECS WAR OVERTIME] !gOver Time !y- !t%i !gFirst Half !yhas been !gStarted !",OTCount);
+    ColorChat(0,"!t[ECS WAR OVERTIME] !gOverTime Number !y: !t%i",OTCount);
 
     g_MatchStarted = true
 
-    is_secondHalf = false
+    is_secondHalf       = false
 
     //Set first half status to zero.
     isFirstHalfStarted = true
@@ -2404,9 +2244,7 @@ public SecondCaptWonKnifeRoundWonMessage(id)
     set_dhudmessage(255, 255, 255, -1.0, -1.0, 0, 2.0, 3.0, 0.8, 0.8)
     show_dhudmessage(0,"Captain [ %s ] Won the Knife Round !",FirstCaptainName)
 
-    client_print_color(0, print_team_default, "^3%s ^4Captain ^3%s ^4Won ^1the ^3Knife Round !", prefix, FirstCaptainName)
-
-    log_to_file(WARLOG_FILE, "|Knife Winner| [%s] Won the Knife Round", FirstCaptainName);
+    ColorChat(0,"!t[ECS WAR] !gCaptain !t%s !gWon !ythe !tKnife Round !",FirstCaptainName)
 
     //Match Stats: Step -2 : Insert the Knife winner in the database.========
     new KnifeRoundWonSteamID[128] 
@@ -2418,14 +2256,12 @@ public SecondCaptWonKnifeRoundWonMessage(id)
 
 public FirstCaptainWonKnifeRoundMessage(id)
 {
-	set_dhudmessage(255, 255, 255, -1.0, -1.0, 0, 2.0, 3.0, 0.8, 0.8)
+    set_dhudmessage(255, 255, 255, -1.0, -1.0, 0, 2.0, 3.0, 0.8, 0.8)
 	show_dhudmessage(0,"Captain [ %s ] Won the Knife Round !",FirstCaptainName)
 
-	client_print_color(0, print_team_default, "^3%s ^4Captain ^3%s ^4Won ^1the ^3Knife Round !", prefix, FirstCaptainName)
+    ColorChat(0,"!t[ECS WAR] !gCaptain !t%s !gWon !ythe !tKnife Round !",FirstCaptainName)
 
-	log_to_file(WARLOG_FILE, "|Knife Winner| [%s] Won the Knife Round", FirstCaptainName);
-
-	set_task(5.0,"ChooseTeam",gCptT)
+    set_task(5.0,"ChooseTeam",gCptT)
     
 }
 
@@ -2438,22 +2274,22 @@ public ShowScoreToUser(id)
         {
             if(( FirstCaptainTeamName == 1) && (get_user_team(id) == 2))
             {
-                client_print_color(id, print_team_default, "^3%s ^1Your ^4Team's Score ^1is: ^3%i | ^4Opponent's Team ^3Score: ^3 %i", prefix, ScoreScondteam,ScoreFtrstTeam)
+                ColorChat(id,"!t[ECS WAR] !yYour !gTeam's Score !yis: !t%i | !gOpponent's Team !tScore: !t %i",ScoreScondteam,ScoreFtrstTeam)
             }
             
             if(( FirstCaptainTeamName == 1 ) && (get_user_team(id) == 1)  )
             {    
-                client_print_color(id, print_team_default, "^3%s ^1Your ^4Team's Score ^1is: ^3%i | ^4Opponent's Team ^3Score: ^3 %i", prefix, ScoreFtrstTeam,ScoreScondteam)
+                ColorChat(id,"!t[ECS WAR] !yYour !gTeam's Score !yis: !t%i | !gOpponent's Team !tScore: !t %i",ScoreFtrstTeam,ScoreScondteam)
             }
 
             if((FirstCaptainTeamName == 2) && (get_user_team(id)) == 2)
             {
-               client_print_color(id, print_team_default, "^3%s ^1Your ^4Team's Score ^1is: ^3%i | ^4Opponent's Team ^3Score: ^3 %i", prefix, ScoreFtrstTeam,ScoreScondteam)
+               ColorChat(id,"!t[ECS WAR] !yYour !gTeam's Score !yis: !t%i | !gOpponent's Team !tScore: !t %i",ScoreFtrstTeam,ScoreScondteam)
             }
 
             if( (FirstCaptainTeamName == 2) && (get_user_team(id) == 1) )
             {
-                client_print_color(id, print_team_default, "^3%s ^1Your ^4Team's Score ^1is: ^3%i | ^4Opponent's Team ^3Score: ^3 %i", prefix, ScoreScondteam,ScoreFtrstTeam)
+                ColorChat(id,"!t[ECS WAR] !yYour !gTeam's Score !yis: !t%i | !gOpponent's Team !tScore: !t %i",ScoreScondteam,ScoreFtrstTeam)
             }
         }
 
@@ -2461,22 +2297,22 @@ public ShowScoreToUser(id)
         {
             if(( FirstCaptainTeamName == 1) && (get_user_team(id) == 2))
             {
-                client_print_color(id, print_team_default, "^3%s ^1Your ^4Team's Score ^1is: ^3%i | ^4Opponent's Team ^3Score: ^3 %i", prefix, ScoreFtrstTeam,ScoreScondteam)
+                ColorChat(id,"!t[ECS WAR] !yYour !gTeam's Score !yis: !t%i | !gOpponent's Team !tScore: !t %i",ScoreFtrstTeam,ScoreScondteam)
             }
             
             if(( FirstCaptainTeamName == 1 ) && (get_user_team(id) == 1)  )
             {    
-                client_print_color(id, print_team_default, "^3%s ^1Your ^4Team's Score ^1is: ^3%i | ^4Opponent's Team ^3Score: ^3 %i", prefix, ScoreScondteam,ScoreFtrstTeam)
+                ColorChat(id,"!t[ECS WAR] !yYour !gTeam's Score !yis: !t%i | !gOpponent's Team !tScore: !t %i",ScoreScondteam,ScoreFtrstTeam)
             }
 
             if((FirstCaptainTeamName == 2) && (get_user_team(id)) == 2)
             {
-                client_print_color(id, print_team_default, "^3%s ^1Your ^4Team's Score ^1is: ^3%i | ^4Opponent's Team ^3Score: ^3 %i", prefix, ScoreScondteam,ScoreFtrstTeam)
+                ColorChat(id,"!t[ECS WAR] !yYour !gTeam's Score !yis: !t%i | !gOpponent's Team !tScore: !t %i",ScoreScondteam,ScoreFtrstTeam)
             }
 
             if( (FirstCaptainTeamName == 2) && (get_user_team(id) == 1) )
             {
-                client_print_color(id, print_team_default, "^3%s ^1Your ^4Team's Score ^1is: ^3%i | ^4Opponent's Team ^3Score: ^3 %i", prefix, ScoreFtrstTeam,ScoreScondteam)
+                ColorChat(id,"!t[ECS WAR] !yYour !gTeam's Score !yis: !t%i | !gOpponent's Team !tScore: !t %i",ScoreFtrstTeam,ScoreScondteam)
             }
         }
     }
@@ -2497,22 +2333,22 @@ public ShowScoreOnRoundStart()
         {
             if(( FirstCaptainTeamName == 1) && (get_user_team(iPlayer) == 2))
             {
-                client_print_color(iPlayer, print_team_default, "^3%s ^1Your ^4Team's Score ^1is: ^3%i | ^4Opponent's Team ^3Score: ^3 %i", prefix, ScoreScondteam,ScoreFtrstTeam)
+                ColorChat(iPlayer,"!t[ECS WAR] !yYour !gTeam's Score !yis: !t%i | !gOpponent's Team !tScore: !t %i",ScoreScondteam,ScoreFtrstTeam)
             }
             
             if(( FirstCaptainTeamName == 1 ) && (get_user_team(iPlayer) == 1)  )
             {    
-                client_print_color(iPlayer, print_team_default, "^3%s ^1Your ^4Team's Score ^1is: ^3%i | ^4Opponent's Team ^3Score: ^3 %i", prefix, ScoreFtrstTeam,ScoreScondteam)
+                ColorChat(iPlayer,"!t[ECS WAR] !yYour !gTeam's Score !yis: !t%i | !gOpponent's Team !tScore: !t %i",ScoreFtrstTeam,ScoreScondteam)
             }
 
             if((FirstCaptainTeamName == 2) && (get_user_team(iPlayer)) == 2)
             {
-                client_print_color(iPlayer, print_team_default, "^3%s ^1Your ^4Team's Score ^1is: ^3%i | ^4Opponent's Team ^3Score: ^3 %i", prefix, ScoreFtrstTeam,ScoreScondteam)
+                ColorChat(iPlayer,"!t[ECS WAR] !yYour !gTeam's Score !yis: !t%i | !gOpponent's Team !tScore: !t %i",ScoreFtrstTeam,ScoreScondteam)
             }
 
             if( (FirstCaptainTeamName == 2) && (get_user_team(iPlayer) == 1) )
             {
-                client_print_color(iPlayer, print_team_default, "^3%s ^1Your ^4Team's Score ^1is: ^3%i | ^4Opponents ^3Score: ^3 %i", prefix, ScoreScondteam,ScoreFtrstTeam)
+                ColorChat(iPlayer,"!t[ECS WAR] !yYour !gTeam's Score !yis: !t%i | !gOpponents !tScore: !t %i",ScoreScondteam,ScoreFtrstTeam)
             }
         }
 
@@ -2520,22 +2356,22 @@ public ShowScoreOnRoundStart()
         {
             if(( FirstCaptainTeamName == 1) && (get_user_team(iPlayer) == 2))
             {
-                client_print_color(iPlayer, print_team_default, "^3%s ^1Your ^4Team's Score ^1is: ^3%i | ^4Opponent's Team ^3Score: ^3 %i", prefix, ScoreFtrstTeam,ScoreScondteam)
+                ColorChat(iPlayer,"!t[ECS WAR] !yYour !gTeam's Score !yis: !t%i | !gOpponent's Team !tScore: !t %i",ScoreFtrstTeam,ScoreScondteam)
             }
             
             if(( FirstCaptainTeamName == 1 ) && (get_user_team(iPlayer) == 1)  )
             {    
-                client_print_color(iPlayer, print_team_default, "^3%s ^1Your ^4Team's Score ^1is: ^3%i | ^4Opponent's Team ^3Score: ^3 %i", prefix, ScoreScondteam,ScoreFtrstTeam)
+                ColorChat(iPlayer,"!t[ECS WAR] !yYour !gTeam's Score !yis: !t%i | !gOpponent's Team !tScore: !t %i",ScoreScondteam,ScoreFtrstTeam)
             }
 
             if((FirstCaptainTeamName == 2) && (get_user_team(iPlayer)) == 2)
             {
-                client_print_color(iPlayer, print_team_default, "^3%s ^1Your ^4Team's Score ^1is: ^3%i | ^4Opponent's Team ^3Score: ^3 %i", prefix, ScoreScondteam,ScoreFtrstTeam)
+                ColorChat(iPlayer,"!t[ECS WAR] !yYour !gTeam's Score !yis: !t%i | !gOpponent's Team !tScore: !t %i",ScoreScondteam,ScoreFtrstTeam)
             }
 
             if( (FirstCaptainTeamName == 2) && (get_user_team(iPlayer) == 1) )
             {
-                client_print_color(iPlayer, print_team_default, "^3%s ^1Your ^4Team's Score ^1is: ^3%i | ^4Opponent's Team ^3Score: ^3 %i", prefix, ScoreFtrstTeam,ScoreScondteam)
+                ColorChat(iPlayer,"!t[ECS WAR] !yYour !gTeam's Score !yis: !t%i | !gOpponent's Team !tScore: !t %i",ScoreFtrstTeam,ScoreScondteam)
             }
         }
     }
@@ -2551,29 +2387,14 @@ public GiveRestartRound( )
 //All MESSAGES.
 public FirstHalfHUDMessage()
 {
-	#if defined LIVE_DHUD
-	ShowHUD_LiveLive()
-	#else
     set_dhudmessage(0, 255, 255, -1.0, -1.0, 0, 2.0, 3.0, 0.8, 0.8)
     show_dhudmessage(0,"={ First Half Started ! }=^n --[ %s ]--^n--[ %s ]--^n--[ %s ]--","LIVE !!! GL & HF","LIVE !!! GL & HF","LIVE !!! GL & HF")
-    #endif
 }
 
 public SecondHalfHUDMessage()
 {
-	RestoreScore()
 
-	#if defined LIVE_DHUD
-    ShowHUD_LiveLive()
-    #else
-    set_dhudmessage(0, 255, 255, -1.0, -1.0, 0, 2.0, 3.0, 0.8, 0.8)
-    show_dhudmessage(0,"={ Second Half Started ! }=^n --[ %s ]--^n--[ %s ]--^n--[ %s ]--","LIVE !!!","LIVE !!! ","LIVE !!! ")
-    #endif
-}
-
-public RestoreScore()
-{
-	new players[32], num
+    new players[32], num
     get_players(players, num,"h")
     
     new player
@@ -2587,6 +2408,9 @@ public RestoreScore()
         }
 
     }
+
+    set_dhudmessage(0, 255, 255, -1.0, -1.0, 0, 2.0, 3.0, 0.8, 0.8)
+    show_dhudmessage(0,"={ Second Half Started ! }=^n --[ %s ]--^n--[ %s ]--^n--[ %s ]--","LIVE !!!","LIVE !!! ","LIVE !!! ")
 }
 
 public SecondHalfOverTimeHUDMessage()
@@ -2662,18 +2486,14 @@ public FirstHalfCompletedHUDMessage()
 
         set_dhudmessage(0,255, 0, -1.0, -1.0, 0, 2.0, 4.0, 0.8, 0.8)
         show_dhudmessage(0, score_message)
-
-        log_to_file(WARLOG_FILE, "|1st Half Score| [%s] - %i Winning to [%s] - %i", FirstCaptainName,ScoreFtrstTeam,SecondCaptainName,ScoreScondteam);
     }
 
     if(ScoreScondteam > ScoreFtrstTeam)
     {
-        format(score_message, 1023, "={ First Half Score }= ^n %s - %i ^n Winning to ^n %s - %i",SecondCaptainName,ScoreScondteam,FirstCaptainName,ScoreFtrstTeam)
+        format(score_message, 1023, "={ First Falf Score }= ^n %s - %i ^n Winning to ^n %s - %i",SecondCaptainName,ScoreScondteam,FirstCaptainName,ScoreFtrstTeam)
 
         set_dhudmessage(0,255, 0, -1.0, -1.0, 0, 2.0, 4.0, 0.8, 0.8)
         show_dhudmessage(0, score_message)
-
-        log_to_file(WARLOG_FILE, "|1st Half Score| [%s] - %i Winning to [%s] - %i", SecondCaptainName,ScoreScondteam,FirstCaptainName,ScoreFtrstTeam);
     }
 
     if(ScoreFtrstTeam == ScoreScondteam)
@@ -2682,8 +2502,6 @@ public FirstHalfCompletedHUDMessage()
 
         set_dhudmessage(0,255, 0, -1.0, -1.0, 0, 2.0, 4.0, 0.8, 0.8)
         show_dhudmessage(0, score_message)
-
-        log_to_file(WARLOG_FILE, "|1st Half Score| Both Teams Have Won %i Rounds.", ScoreScondteam);
     }
 }
 
@@ -2697,8 +2515,6 @@ public SecondHalfCompletedHUDMessage()
 
         set_dhudmessage(0,255, 0, -1.0, -1.0, 0, 2.0, 4.0, 0.8, 0.8)
         show_dhudmessage(0, score_message)
-
-        log_to_file(WARLOG_FILE, "|Final Score| [%s] - %i Winning to [%s] - %i", FirstCaptainName,ScoreFtrstTeam,SecondCaptainName,ScoreScondteam);
     }
 
     if(ScoreScondteam > ScoreFtrstTeam)
@@ -2707,18 +2523,14 @@ public SecondHalfCompletedHUDMessage()
 
         set_dhudmessage(0,255, 0, -1.0, -1.0, 0, 2.0, 4.0, 0.8, 0.8)
         show_dhudmessage(0, score_message)
-
-        log_to_file(WARLOG_FILE, "|Final Score| [%s] - %i Winning to [%s] - %i", SecondCaptainName,ScoreScondteam,FirstCaptainName,ScoreFtrstTeam);
     }
 
     if(ScoreFtrstTeam == ScoreScondteam)
     {
-        format(score_message, 1023, "={ Match Score }=^n Both Teams Have Won %i Rounds.", ScoreScondteam)
+        format(score_message, 1023, "={ Match Score }=^n Both Teams Have Won %i Rounds.")
 
         set_dhudmessage(0,255, 0, -1.0, -1.0, 0, 2.0, 6.0, 0.8, 0.8)
         show_dhudmessage(0, score_message)
-
-        log_to_file(WARLOG_FILE, "|Final Score| Both Teams Have Won %i Rounds.", ScoreScondteam);
     }
 
 }
@@ -2731,6 +2543,7 @@ public MatchIsOverHUDMessage()
 
 public MatchIsDrawHUDMessage()
 {
+
     set_dhudmessage(0,255, 0, -1.0, -1.0, 0, 2.0, 3.0, 0.8, 0.8)
     show_dhudmessage(0,"={ Match Is Draw!! }=")
 }
@@ -2767,136 +2580,44 @@ public LiveOnThreeRestart()
 {
 
     set_dhudmessage(42, 255, 212, -1.0, -1.0, 0, 2.0, 3.0, 0.8, 0.8)
-    show_dhudmessage(0,"-{ LiVe On 3 RestartS }- ^n-= LO3 =-")
+    show_dhudmessage(0,"-{ LiVe On 3 RestartS } - ^n -== LO3 =-")
 }
 
-#if defined LIVE_DHUD
-public ShowHUD_LiveLive()
+
+/*
+*	STOCKS
+*
+*/
+//For color chat
+
+stock ColorChat(const id, const input[], any:...) 
+{ 
+    new count = 1, players[32]; 
+    static msg[191]; 
+    vformat(msg, 190, input, 3); 
+    
+    replace_all(msg, 190, "!y", "^x01");
+    replace_all(msg, 190, "!g", "^x04");     
+    replace_all(msg, 190, "!t", "^x03");
+    
+    if (id) players[0] = id; else get_players(players, count, "ch"); { 
+        for (new i = 0; i < count; i++) 
+        { 
+            if (is_user_connected(players[i])) 
+            { 
+                message_begin(MSG_ONE_UNRELIABLE, get_user_msgid("SayText"), _, players[i]); 
+                write_byte(players[i]); 
+                write_string(msg); 
+                message_end(); 
+            } 
+        } 
+    } 
+}
+
+
+stock ecs(const text[], any:...)
 {
-	set_task( 0.2, "HUD_LiveLive", _, _, _, "a", sizeof( HUD_XY_POS ) * 2 );
+	new szMsg[191]
+	vformat(szMsg, charsmax(szMsg), text, 2);
+	server_print("[ECS Points] %s", szMsg)
 }
-
-public HUD_LiveLive( index )
-{
-	if( iXYPos >= sizeof( HUD_XY_POS ) ) iXYPos = 0;
-	set_dhudmessage( random_num( 0, 255 ), random_num( 0, 255 ), random_num( 0, 255 ), HUD_XY_POS[ iXYPos ][ 0 ], HUD_XY_POS[ iXYPos ][ 1 ], 0, 50.0, 0.3, 0.4, 0.4 );
-	show_dhudmessage( index, "[   L   I   V   E   ]          [   %s   ]          [   %s   ]             [   L   I   V   E   ]", isFirstHalfStarted ? "FIRST HALF" : "SECOND HALF" , isFirstHalfStarted ? "FIRST HALF" : "SECOND HALF" );
-	iXYPos++;
-}
-#endif
-
-// Auto Map Vote
-public StartVote()  
-{  
-	getmaps() 
-	new rnd 
-	while (g_DoneMaps != 4 && g_MapsCounter > 0) { 
-		rnd = random(g_MapsCounter) 
-		copy(g_MapsChosen[g_DoneMaps++], 19, g_MapsAvailable[rnd]) 
-		g_MapsAvailable[rnd] = g_MapsAvailable[--g_MapsCounter] 
-	}         
-
-	new title[64], extend[64]
-	formatex(title, charsmax(title), "Auto Change Map^n")
-	formatex(extend, charsmax(extend), "Extend Current Map")
-	g_gVoteMenu = menu_create(title,"votemap")
-	
-	new num[11] 
-	for(new i = 0; i < g_DoneMaps; i++)  { 
-		num_to_str(i, num, 10) 
-		menu_additem(g_gVoteMenu, g_MapsChosen[i], num, 0)
-	}
-	menu_additem(g_gVoteMenu, extend, "4", 0) 
-	menu_setprop(g_gVoteMenu, MPROP_EXIT, MEXIT_NEVER)
-	
-	new players[32], pnum, tempid; 
-	get_players(players, pnum, "ch"); 
-	
-	for( new i; i<pnum; i++)
-	{ 
-		tempid = players[i]; 
-		menu_display(tempid, g_gVoteMenu); 
-	}
-
-	client_cmd(0, "spk ^"get red(e80) ninety(s45) to check(e20) use bay(s18) mass(e42) cap(s50)^"") 
-	set_task(10.0, "EndVote");
-	return PLUGIN_HANDLED;
-} 
-
-public votemap(id, menu, item) {
-
-	if(item == MENU_EXIT) 
-	{
-		return PLUGIN_HANDLED
-	}
-	
-	new data[6], szName[64];
-	new access, callback;
-	menu_item_getinfo(menu, item, access, data,charsmax(data), szName,charsmax(szName), callback);
-	new voteid = str_to_num(data);
-	new playerna[32]
-	get_user_name(id, playerna, 31)
-	
-	if(voteid != 4)
-		client_print_color(0, 0, "^4%s ^3%s ^1voted for ^4[ ^3%s ^4]", prefix, playerna, g_MapsChosen[voteid])
-	else 
-		client_print_color(0, 0, "^4%s ^3%s ^1voted to ^4extend ^3the ^1current map.", prefix, playerna)
-	
-	g_gVotes[voteid]++;
-	return PLUGIN_HANDLED;
-}
-
-public getmaps() { 
-	new mapsfile = fopen(g_Maps_Ini_File, "r") 
-	new linefortest[50] 
-     
-	while (g_MapsCounter < sizeof(g_MapsAvailable) && !feof(mapsfile)) { 
-		fgets(mapsfile, linefortest, 49) 
-		trim(linefortest) 
-		
-		new getcurrentmap[32]
-		get_mapname(getcurrentmap, 31)
-		
-		if ((is_map_valid(linefortest)) && (!equali(linefortest, getcurrentmap))) 
-			copy(g_MapsAvailable[g_MapsCounter++], 24, linefortest)  
-	} 
-     
-	fclose(mapsfile) 
-} 
-
-public EndVote() { 
-	show_menu(0, 0, "^n", 1); 
-	new best = 0; 
-	for(new i = 1; i < sizeof(g_gVotes); i++) { 
-		if(g_gVotes[i] > g_gVotes[best]) 
-		best = i; 
-	}
-	
-	g_gVotes[0] = 0
-	g_gVotes[1] = 0
-	g_gVotes[2] = 0
-	g_gVotes[3] = 0
-	g_gVotes[4] = 0
-	
-	if(best == 4) { 
-		client_print_color(0, 0, "^4%s ^3The ^1current map ^4will be ^3extended ^1for this match.", prefix); 
-		//TeamsVote()
-	} 
-	else { 
-		client_print_color(0, 0, "^4%s ^3The ^1map ^4will be ^3changed ^1within 10 ^4seconds. Nextmap ^3[ ^4%s ^3].", prefix, g_MapsChosen[best]); 
-		g_ChangeMapTo = best;
-
-		set_task(10.0, "ChangeMap"); 
-	} 
-	
-	return PLUGIN_HANDLED
-}
-
-public ChangeMap() {
-	new maptochangeto[25]
-	
-	copy(maptochangeto, 24, g_MapsChosen[g_ChangeMapTo])
-	server_cmd("changelevel %s", maptochangeto)
-	return PLUGIN_CONTINUE
-}
-// End
