@@ -12,15 +12,35 @@
 #include <dhudmessage>
 #endif 
 
-#define PLUGIN "Clan War"
+#define PLUGIN "Simple War"
 #define VERSION "2.0"
-#define AUTHOR "Abhishek Deshkar || Joy Mendonca || blu_knite"
+#define AUTHOR "Abhishek Deshkar | Joy Mendonca | blu_knite"
 #define SVNUM 1
 
 #define ACCESS ADMIN_KICK
 
 //Set frags.
 new Frags[33], Deaths[33]
+
+new iXYPos;
+new const Float:HUD_XY_POS[ ][ ] =
+{
+	{ -1.0, 0.98 },
+	{ -1.0, 0.91 },
+	{ -1.0, 0.84 },
+	{ -1.0, 0.77 },
+	{ -1.0, 0.70 },
+	{ -1.0, 0.63 },
+	{ -1.0, 0.56 },
+	{ -1.0, 0.49 },
+	{ -1.0, 0.42 },
+	{ -1.0, 0.35 },
+	{ -1.0, 0.28 },
+	{ -1.0, 0.21 },
+	{ -1.0, 0.14 },
+	{ -1.0, 0.07 },
+	{ -1.0, 0.00 }
+};
 
 //======= Overtime Declarations ==================
 
@@ -921,56 +941,28 @@ public round_end()
 
 public FirstHalfHUDMessage()
 {
-	set_task(1.0, "HUD_firstLive", _, _, _, "a", 3)
+	set_task(0.2, "HUD_LiveFirst", _, _, _, "a", sizeof( HUD_XY_POS ) * 2);
 }
 
 public SecondHalfHUDMessage()
 {
-	set_task(1.0, "HUD_secondLive", _, _, _, "a", 3)
+	set_task(0.2, "HUD_LiveSecond", _, _, _, "a", sizeof( HUD_XY_POS ) * 2);
 }
 
-public HUD_firstLive()
+public HUD_LiveFirst( index )
 {
-	set_dhudmessage( random_num( 0, 255 ), random_num( 0, 255 ), random_num( 0, 255 ), -1.0, 0.90 , 0, 0.5, 0.5, 0.2, 0.4);
-	show_dhudmessage(0, "[  F   I   R   S   T  ]          [  H   A   L   F  ]          [  S   T   A   R   T   E   D  ]" );
-	set_dhudmessage( random_num( 0, 255 ), random_num( 0, 255 ), random_num( 0, 255 ), -1.0, 0.80 , 0, 1.0, 0.5, 0.2, 0.4);
-	show_dhudmessage(0, "[  F   I   R   S   T  ]          [  H   A   L   F  ]          [  S   T   A   R   T   E   D  ]" );
-	set_dhudmessage( random_num( 0, 255 ), random_num( 0, 255 ), random_num( 0, 255 ), -1.0, 0.70 , 0, 0.5, 0.5, 0.2, 0.4);
-	show_dhudmessage(0, "[  F   I   R   S   T  ]          [  H   A   L   F  ]          [  S   T   A   R   T   E   D  ]" );
-	set_dhudmessage( random_num( 0, 255 ), random_num( 0, 255 ), random_num( 0, 255 ), -1.0, 0.60 , 0, 0.5, 0.5, 0.2, 0.4);
-	show_dhudmessage(0, "[  F   I   R   S   T  ]          [  H   A   L   F  ]          [  S   T   A   R   T   E   D  ]" );
-	set_dhudmessage( random_num( 0, 255 ), random_num( 0, 255 ), random_num( 0, 255 ), -1.0, 0.50 , 0, 0.5, 0.5, 0.2, 0.4);
-	show_dhudmessage(0, "[  F   I   R   S   T  ]          [  H   A   L   F  ]          [  S   T   A   R   T   E   D  ]" );
-	set_dhudmessage( random_num( 0, 255 ), random_num( 0, 255 ), random_num( 0, 255 ), -1.0, 0.40 , 0, 0.5, 0.5, 0.2, 0.4);
-	show_dhudmessage(0, "[  F   I   R   S   T  ]          [  H   A   L   F  ]          [  S   T   A   R   T   E   D  ]" );
-	set_dhudmessage( random_num( 0, 255 ), random_num( 0, 255 ), random_num( 0, 255 ), -1.0, 0.30 , 0, 0.5, 0.5, 0.2, 0.4);
-	show_dhudmessage(0, "[  F   I   R   S   T  ]          [  H   A   L   F  ]          [  S   T   A   R   T   E   D  ]" );
-	set_dhudmessage( random_num( 0, 255 ), random_num( 0, 255 ), random_num( 0, 255 ), -1.0, 0.20 , 0, 0.5, 0.5, 0.2, 0.4);
-	show_dhudmessage(0, "[  F   I   R   S   T  ]          [  H   A   L   F  ]          [  S   T   A   R   T   E   D  ]" );
-	set_dhudmessage( random_num( 0, 255 ), random_num( 0, 255 ), random_num( 0, 255 ), -1.0, 0.10 , 0, 0.5, 0.5, 0.2, 0.4);
-	show_dhudmessage(0, "[  F   I   R   S   T  ]          [  H   A   L   F  ]          [  S   T   A   R   T   E   D  ]" );
+	if( iXYPos >= sizeof( HUD_XY_POS ) ) iXYPos = 0;
+	set_dhudmessage( random_num( 0, 255 ), random_num( 0, 255 ), random_num( 0, 255 ), HUD_XY_POS[ iXYPos ][ 0 ], HUD_XY_POS[ iXYPos ][ 1 ], 0, 50.0, 0.3, 0.4, 0.4);
+	show_dhudmessage( index, "[  F   I   R   S   T  ]          [  H   A   L   F  ]          [  S   T   A   R   T   E   D  ]" );
+	iXYPos++;
 }
 
-public HUD_secondLive()
+public HUD_LiveSecond( index )
 {
-	set_dhudmessage( random_num( 0, 255 ), random_num( 0, 255 ), random_num( 0, 255 ), -1.0, 0.90 , 0, 0.5, 0.5, 0.2, 0.4);
-	show_dhudmessage(0, "[  S   E   C   O   N   D  ]          [  H   A   L   F  ]          [  S   T   A   R   T   E   D  ]" );
-	set_dhudmessage( random_num( 0, 255 ), random_num( 0, 255 ), random_num( 0, 255 ), -1.0, 0.80 , 0, 1.0, 0.5, 0.2, 0.4);
-	show_dhudmessage(0, "[  S   E   C   O   N   D  ]          [  H   A   L   F  ]          [  S   T   A   R   T   E   D  ]" );
-	set_dhudmessage( random_num( 0, 255 ), random_num( 0, 255 ), random_num( 0, 255 ), -1.0, 0.70 , 0, 0.5, 0.5, 0.2, 0.4);
-	show_dhudmessage(0, "[  S   E   C   O   N   D  ]          [  H   A   L   F  ]          [  S   T   A   R   T   E   D  ]" );
-	set_dhudmessage( random_num( 0, 255 ), random_num( 0, 255 ), random_num( 0, 255 ), -1.0, 0.60 , 0, 0.5, 0.5, 0.2, 0.4);
-	show_dhudmessage(0, "[  S   E   C   O   N   D  ]          [  H   A   L   F  ]          [  S   T   A   R   T   E   D  ]" );
-	set_dhudmessage( random_num( 0, 255 ), random_num( 0, 255 ), random_num( 0, 255 ), -1.0, 0.50 , 0, 0.5, 0.5, 0.2, 0.4);
-	show_dhudmessage(0, "[  S   E   C   O   N   D  ]          [  H   A   L   F  ]          [  S   T   A   R   T   E   D  ]" );
-	set_dhudmessage( random_num( 0, 255 ), random_num( 0, 255 ), random_num( 0, 255 ), -1.0, 0.40 , 0, 0.5, 0.5, 0.2, 0.4);
-	show_dhudmessage(0, "[  S   E   C   O   N   D  ]          [  H   A   L   F  ]          [  S   T   A   R   T   E   D  ]" );
-	set_dhudmessage( random_num( 0, 255 ), random_num( 0, 255 ), random_num( 0, 255 ), -1.0, 0.30 , 0, 0.5, 0.5, 0.2, 0.4);
-	show_dhudmessage(0, "[  S   E   C   O   N   D  ]          [  H   A   L   F  ]          [  S   T   A   R   T   E   D  ]" );
-	set_dhudmessage( random_num( 0, 255 ), random_num( 0, 255 ), random_num( 0, 255 ), -1.0, 0.20 , 0, 0.5, 0.5, 0.2, 0.4);
-	show_dhudmessage(0, "[  S   E   C   O   N   D  ]          [  H   A   L   F  ]          [  S   T   A   R   T   E   D  ]" );
-	set_dhudmessage( random_num( 0, 255 ), random_num( 0, 255 ), random_num( 0, 255 ), -1.0, 0.10 , 0, 0.5, 0.5, 0.2, 0.4);
-	show_dhudmessage(0, "[  S   E   C   O   N   D  ]          [  H   A   L   F  ]          [  S   T   A   R   T   E   D  ]" );
+	if( iXYPos >= sizeof( HUD_XY_POS ) ) iXYPos = 0;
+	set_dhudmessage( random_num( 0, 255 ), random_num( 0, 255 ), random_num( 0, 255 ), HUD_XY_POS[ iXYPos ][ 0 ], HUD_XY_POS[ iXYPos ][ 1 ], 0, 50.0, 0.3, 0.4, 0.4);
+	show_dhudmessage( index, "[  S   E   C   O   N   D  ]          [  H   A   L   F  ]          [  S   T   A   R   T   E   D  ]" );
+	iXYPos++;
 }
 
 public MakeTeamSelectorMenu( id, const szMenuTitle[], const szMenuHandler[])
@@ -1921,7 +1913,3 @@ public fnSortFunc(elem1, elem2, const array[], const data[], data_size)
     
     return 1
 }
-
-/* AMXX-Studio Notes - DO NOT MODIFY BELOW HERE
-*{\\ rtf1\\ ansi\\ deff0{\\ fonttbl{\\ f0\\ fnil Tahoma;}}\n\\ viewkind4\\ uc1\\ pard\\ lang1033\\ f0\\ fs16 \n\\ par }
-*/
